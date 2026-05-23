@@ -1,16 +1,5 @@
-import { requireRole } from "@/lib/session"
-import { rekapHarian } from "@/app/actions/laporan"
-import { LaporanHarianClient } from "./_client"
+import { redirect } from "next/navigation"
 
-export default async function LaporanHarianPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ tanggal?: string }>
-}) {
-  await requireRole(["ADMIN", "PIMPINAN"])
-  const params = await searchParams
-  const tanggal = params.tanggal ?? new Date().toISOString().split("T")[0]
-  const { rows, total } = await rekapHarian(tanggal)
-
-  return <LaporanHarianClient tanggal={tanggal} rows={rows} total={total} />
+export default function Page() {
+  redirect("/laporan")
 }

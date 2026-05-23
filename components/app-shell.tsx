@@ -7,7 +7,8 @@ import {
   Building2, LayoutDashboard, BarChart3,
   Users, LogOut, ChevronRight, Banknote, BookOpen,
 } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn, getInitials } from "@/lib/utils"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { actionLogout } from "@/app/actions/auth"
 import { ThemeToggle } from "@/components/theme-toggle"
 import type { Profile } from "@/lib/session"
@@ -62,14 +63,7 @@ function getMenuItems(role: string): MenuItem[] {
       ],
     },
     { label: "Pengguna", href: "/pengguna", icon: Users },
-    {
-      label: "Laporan", href: "/laporan", icon: BarChart3,
-      children: [
-        { label: "Laporan Harian", href: "/laporan/harian" },
-        { label: "Laporan Bulanan", href: "/laporan/bulanan" },
-        { label: "Rekap per Rekening", href: "/laporan/per-rekening" },
-      ],
-    },
+    { label: "Laporan", href: "/laporan", icon: BarChart3 },
   ]
   const operatorMenu: MenuItem[] = [
     {
@@ -82,14 +76,7 @@ function getMenuItems(role: string): MenuItem[] {
     },
   ]
   const pimpinanMenu: MenuItem[] = [
-    {
-      label: "Laporan", href: "/laporan", icon: BarChart3,
-      children: [
-        { label: "Laporan Harian", href: "/laporan/harian" },
-        { label: "Laporan Bulanan", href: "/laporan/bulanan" },
-        { label: "Rekap per Rekening", href: "/laporan/per-rekening" },
-      ],
-    },
+    { label: "Laporan", href: "/laporan", icon: BarChart3 },
   ]
   if (role === "ADMIN") return [...common, ...adminMenu]
   if (role === "OPERATOR") return [...common, ...operatorMenu]
@@ -166,18 +153,25 @@ function AppSidebarFooter({ profile }: { profile: Profile }) {
   return (
     <SidebarFooter>
       <SidebarMenu>
-        {!collapsed && (
-          <SidebarMenuItem>
-            <div className="rounded-lg bg-sidebar-accent px-3 py-2">
-              <p className="truncate text-xs font-medium text-sidebar-foreground/80">
-                {profile.nama_lengkap}
-              </p>
-              <p className="truncate text-[10px] text-sidebar-foreground/30">
-                {profile.role.nama}
-              </p>
-            </div>
-          </SidebarMenuItem>
-        )}
+        <SidebarMenuItem>
+          <div className={cn("rounded-lg bg-sidebar-accent px-3 py-2 flex items-center gap-2.5", collapsed && "justify-center px-1.5")}>
+            <Avatar className="h-7 w-7 shrink-0">
+              <AvatarFallback className="text-[10px] bg-primary/15 text-primary">
+                {getInitials(profile.nama_lengkap)}
+              </AvatarFallback>
+            </Avatar>
+            {!collapsed && (
+              <div className="min-w-0">
+                <p className="truncate text-xs font-medium text-sidebar-foreground/80">
+                  {profile.nama_lengkap}
+                </p>
+                <p className="truncate text-[10px] text-sidebar-foreground/30">
+                  {profile.role.nama}
+                </p>
+              </div>
+            )}
+          </div>
+        </SidebarMenuItem>
         <SidebarMenuItem>
           <ThemeToggle collapsed={collapsed} />
         </SidebarMenuItem>
@@ -250,6 +244,14 @@ export function AppShell({
         <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-4">
           <SidebarTrigger />
           <span className="text-sm font-medium text-foreground/70 md:hidden">BLU UIN Palopo</span>
+          <div className="ml-auto flex items-center gap-2">
+            <span className="hidden sm:block text-xs text-foreground/60">{profile.nama_lengkap}</span>
+            <Avatar className="h-7 w-7">
+              <AvatarFallback className="text-[10px] bg-primary/15 text-primary">
+                {getInitials(profile.nama_lengkap)}
+              </AvatarFallback>
+            </Avatar>
+          </div>
         </header>
         <main className="flex flex-1 flex-col overflow-y-auto p-4 lg:p-6">
           {children}

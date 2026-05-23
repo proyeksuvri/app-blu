@@ -17,6 +17,8 @@ export type PenerimaanFilter = {
   rekening_id?: string
   q?: string
   page?: number
+  sort?: "tanggal_terima" | "jumlah" | "nomor_bukti"
+  order?: "asc" | "desc"
 }
 
 export async function listPenerimaan(filter: PenerimaanFilter = {}) {
@@ -46,7 +48,9 @@ export async function listPenerimaan(filter: PenerimaanFilter = {}) {
   if (filter.rekening_id) q = q.eq("rekening_bank_id", filter.rekening_id)
   if (filter.q) q = q.ilike("nomor_bukti", `%${filter.q}%`)
 
-  q = q.order("tanggal_terima", { ascending: false }).range(offset, offset + limit - 1)
+  const sortCol = filter.sort ?? "tanggal_terima"
+  const ascending = filter.order === "asc"
+  q = q.order(sortCol, { ascending }).range(offset, offset + limit - 1)
 
   const { data, error, count } = await q
   if (error) return { data: [], count: 0 }

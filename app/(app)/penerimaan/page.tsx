@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import Link from "next/link"
 import { getCurrentProfile } from "@/lib/session"
 import { redirect } from "next/navigation"
@@ -5,21 +6,27 @@ import { listPenerimaan } from "@/app/actions/penerimaan"
 import { PageHeader } from "@/components/page-header"
 import { Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { PenerimaanTable } from "./_components/penerimaan-table"
+import { StatusTabs } from "./_components/status-tabs"
 
 export default async function PenerimaanPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; page?: string }>
+  searchParams: Promise<{ status?: string; page?: string; sort?: string; order?: string }>
 }) {
   const profile = await getCurrentProfile()
   if (!profile) redirect("/")
 
   const params = await searchParams
+  const sort = (["tanggal_terima", "jumlah", "nomor_bukti"].includes(params.sort ?? "")
+    ? params.sort : "tanggal_terima") as "tanggal_terima" | "jumlah" | "nomor_bukti"
+  const order = params.order === "asc" ? "asc" : "desc"
+
   const { data, count } = await listPenerimaan({
     status: params.status as "draft" | "verified" | "void" | undefined,
     page: params.page ? parseInt(params.page) : 1,
+    sort,
+    order,
   })
 
   const isOperator = profile.role.kode === "OPERATOR"
@@ -40,23 +47,13 @@ export default async function PenerimaanPage({
         }
       />
 
-      {/* Filter status */}
-      <div className="flex gap-2">
-        {(["", "draft", "verified", "void"] as const).map((s) => {
-          const isActive = (params.status ?? "") === s
-          return (
-            <Badge
-              key={s}
-              variant={isActive ? "secondary" : "ghost"}
-              render={<Link href={s ? `/penerimaan?status=${s}` : "/penerimaan"} />}
-            >
-              {s === "" ? "Semua" : s === "draft" ? "Draft" : s === "verified" ? "Terverifikasi" : "Dibatalkan"}
-            </Badge>
-          )
-        })}
-      </div>
+      <Suspense>
+        <StatusTabs />
+      </Suspense>
 
-      <PenerimaanTable data={data as Parameters<typeof PenerimaanTable>[0]["data"]} isAdmin={isAdmin} />
+      <Suspense>
+        <PenerimaanTable data={data as Parameters<typeof PenerimaanTable>[0]["data"]} isAdmin={isAdmin} sort={sort} order={order} />
+      </Suspense>
     </div>
   )
 }

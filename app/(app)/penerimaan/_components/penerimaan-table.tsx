@@ -2,9 +2,10 @@
 
 import { useState, useTransition } from "react"
 import Link from "next/link"
+import { useRouter, useSearchParams } from "next/navigation"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
-import { X, CheckCheck, Trash2 } from "lucide-react"
+import { X, CheckCheck, Trash2, ChevronUpIcon, ChevronDownIcon, ChevronsUpDownIcon } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -27,7 +28,40 @@ type Row = {
   unit: unknown
 }
 
-export function PenerimaanTable({ data, isAdmin }: { data: Row[]; isAdmin: boolean }) {
+type SortKey = "tanggal_terima" | "jumlah" | "nomor_bukti"
+
+function SortHead({ label, col, sort, order }: { label: string; col: SortKey; sort: SortKey; order: "asc" | "desc" }) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
+  function handleSort() {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("sort", col)
+    params.set("order", sort === col && order === "desc" ? "asc" : "desc")
+    params.delete("page")
+    router.push(`?${params.toString()}`)
+  }
+
+  const active = sort === col
+  return (
+    <button onClick={handleSort} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors select-none">
+      {label}
+      {active
+        ? order === "desc"
+          ? <ChevronDownIcon className="h-3 w-3 opacity-70" />
+          : <ChevronUpIcon className="h-3 w-3 opacity-70" />
+        : <ChevronsUpDownIcon className="h-3 w-3 opacity-40" />
+      }
+    </button>
+  )
+}
+
+export function PenerimaanTable({ data, isAdmin, sort, order }: {
+  data: Row[]
+  isAdmin: boolean
+  sort: SortKey
+  order: "asc" | "desc"
+}) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [pending, startTransition] = useTransition()
 
@@ -98,11 +132,11 @@ export function PenerimaanTable({ data, isAdmin }: { data: Row[]; isAdmin: boole
                   />
                 </TableHead>
               )}
-              <TableHead className="text-muted-foreground text-xs">Nomor Bukti</TableHead>
-              <TableHead className="text-muted-foreground text-xs">Tanggal</TableHead>
+              <TableHead className="text-xs"><SortHead label="Nomor Bukti" col="nomor_bukti" sort={sort} order={order} /></TableHead>
+              <TableHead className="text-xs"><SortHead label="Tanggal" col="tanggal_terima" sort={sort} order={order} /></TableHead>
               <TableHead className="text-muted-foreground text-xs">Jenis</TableHead>
               <TableHead className="text-muted-foreground text-xs">Unit</TableHead>
-              <TableHead className="text-muted-foreground text-xs text-right">Jumlah</TableHead>
+              <TableHead className="text-xs text-right"><SortHead label="Jumlah" col="jumlah" sort={sort} order={order} /></TableHead>
               <TableHead className="text-muted-foreground text-xs">Status</TableHead>
             </TableRow>
           </TableHeader>

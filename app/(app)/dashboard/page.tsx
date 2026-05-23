@@ -8,7 +8,6 @@ import { PenerimaanStatusBadge } from "@/components/penerimaan-status-badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardHeader, CardContent, CardAction, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { DashboardChart } from "./_chart"
 import { MonthlyChart } from "./_monthly-chart"
 
 const rupiah = (n: number) =>
@@ -76,11 +75,6 @@ export default async function DashboardPage() {
             Input Penerimaan
           </Button>
         </div>
-      )}
-
-      {/* Chart 7 hari */}
-      {(isAdmin || isPimpinan) && (
-        <DashboardChart data={stats.chartData} />
       )}
 
       {/* Tren 12 bulan */}
