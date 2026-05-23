@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardHeader, CardContent, CardAction, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { DashboardChart } from "./_chart"
+import { MonthlyChart } from "./_monthly-chart"
 
 const rupiah = (n: number) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n)
@@ -80,6 +81,11 @@ export default async function DashboardPage() {
       {/* Chart 7 hari */}
       {(isAdmin || isPimpinan) && (
         <DashboardChart data={stats.chartData} />
+      )}
+
+      {/* Tren 12 bulan */}
+      {(isAdmin || isPimpinan) && (
+        <MonthlyChart data={stats.monthlyData} />
       )}
 
       {/* Transaksi terbaru */}

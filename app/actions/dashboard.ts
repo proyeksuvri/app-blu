@@ -95,11 +95,39 @@ export async function getDashboardStats() {
     }
   })
 
+  // 12-month trend data
+  const months: { key: string; label: string; awal: string; akhir: string }[] = []
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const year = d.getFullYear()
+    const month = d.getMonth()
+    const awal = `${year}-${String(month + 1).padStart(2, "0")}-01`
+    const lastDay = new Date(year, month + 1, 0).getDate()
+    const akhir = `${year}-${String(month + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`
+    const label = d.toLocaleDateString("id-ID", { month: "short", year: "2-digit" })
+    months.push({ key: `${year}-${String(month + 1).padStart(2, "0")}`, label, awal, akhir })
+  }
+
+  const monthlyRaw = await sb.from("penerimaan")
+    .select("tanggal_terima, jumlah")
+    .eq("status", "verified")
+    .gte("tanggal_terima", months[0].awal)
+    .lte("tanggal_terima", months[months.length - 1].akhir)
+    .then(({ data }) => data ?? [])
+
+  const monthlyData = months.map(({ key, label, awal, akhir }) => {
+    const total = monthlyRaw
+      .filter((r) => r.tanggal_terima >= awal && r.tanggal_terima <= akhir)
+      .reduce((s, r) => s + Number(r.jumlah), 0)
+    return { key, label, total }
+  })
+
   return {
     totalBulanIni: bulanRes,
     draftCount: draftRes,
     hariIni: hariIniRes,
     chartData,
+    monthlyData,
     terbaru: terbaruRes.map((r) => ({
       id: r.id,
       nomor_bukti: r.nomor_bukti,

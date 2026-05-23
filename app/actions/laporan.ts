@@ -17,7 +17,7 @@ export async function rekapHarian(tanggal: string) {
       metode:jenis_pemindahan_kas(nama)
     `)
     .eq("tanggal_terima", tanggal)
-    .in("status", ["draft", "verified"])
+    .eq("status", "verified")
     .order("created_at")
 
   if (error) return { rows: [], total: 0 }
@@ -54,7 +54,7 @@ export async function rekapBulanan(tahun: number, bulan: number) {
     `)
     .gte("tanggal_terima", tglAwal)
     .lte("tanggal_terima", tglAkhir)
-    .in("status", ["draft", "verified"])
+    .eq("status", "verified")
 
   if (error) return { byKategori: [], total: 0 }
 
@@ -92,7 +92,7 @@ export async function rekapPerRekening(tglAwal: string, tglAkhir: string) {
     .select(`jumlah, rekening:rekening_bank(kode, nama_bank, nama_rekening, nomor_rekening)`)
     .gte("tanggal_terima", tglAwal)
     .lte("tanggal_terima", tglAkhir)
-    .in("status", ["draft", "verified"])
+    .eq("status", "verified")
 
   if (error) return { byRekening: [], total: 0 }
 
