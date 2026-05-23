@@ -85,7 +85,11 @@ function InviteForm({ roles, unitKerja, onDone }: { roles: Role[]; unitKerja: Un
           <Label className="text-foreground/60 text-xs">Role</Label>
           <Controller name="role_id" control={control} render={({ field }) => (
             <Select onValueChange={field.onChange} value={field.value}>
-              <SelectTrigger className="bg-muted/50 border-border text-foreground"><SelectValue placeholder="Pilih role" /></SelectTrigger>
+              <SelectTrigger className="bg-muted/50 border-border text-foreground">
+                <SelectValue placeholder="Pilih role">
+                  {field.value ? (roles.find((r) => r.id === field.value)?.nama ?? field.value) : null}
+                </SelectValue>
+              </SelectTrigger>
               <SelectContent className="border-border">
                 {roles.map((r) => <SelectItem key={r.id} value={r.id}>{r.nama}</SelectItem>)}
               </SelectContent>
@@ -97,7 +101,11 @@ function InviteForm({ roles, unitKerja, onDone }: { roles: Role[]; unitKerja: Un
           <Label className="text-foreground/60 text-xs">Unit Kerja (opsional)</Label>
           <Controller name="unit_kerja_id" control={control} render={({ field }) => (
             <Select onValueChange={field.onChange} value={field.value}>
-              <SelectTrigger className="bg-muted/50 border-border text-foreground"><SelectValue placeholder="— Semua unit —" /></SelectTrigger>
+              <SelectTrigger className="bg-muted/50 border-border text-foreground">
+                <SelectValue placeholder="— Semua unit —">
+                  {field.value ? (unitKerja.find((u) => u.id === field.value)?.nama ?? field.value) : null}
+                </SelectValue>
+              </SelectTrigger>
               <SelectContent className="border-border">
                 {unitKerja.map((u) => <SelectItem key={u.id} value={u.id}>{u.nama}</SelectItem>)}
               </SelectContent>
@@ -150,7 +158,11 @@ function EditForm({ row, roles, unitKerja, onDone }: { row: Pengguna; roles: Rol
           <Label className="text-foreground/60 text-xs">Role</Label>
           <Controller name="role_id" control={control} render={({ field }) => (
             <Select onValueChange={field.onChange} value={field.value}>
-              <SelectTrigger className="bg-muted/50 border-border text-foreground"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="bg-muted/50 border-border text-foreground">
+                <SelectValue placeholder="Pilih role">
+                  {field.value ? (roles.find((r) => r.id === field.value)?.nama ?? field.value) : null}
+                </SelectValue>
+              </SelectTrigger>
               <SelectContent className="border-border">
                 {roles.map((r) => <SelectItem key={r.id} value={r.id}>{r.nama}</SelectItem>)}
               </SelectContent>
@@ -161,7 +173,11 @@ function EditForm({ row, roles, unitKerja, onDone }: { row: Pengguna; roles: Rol
           <Label className="text-foreground/60 text-xs">Unit Kerja</Label>
           <Controller name="unit_kerja_id" control={control} render={({ field }) => (
             <Select onValueChange={field.onChange} value={field.value}>
-              <SelectTrigger className="bg-muted/50 border-border text-foreground"><SelectValue placeholder="— Semua —" /></SelectTrigger>
+              <SelectTrigger className="bg-muted/50 border-border text-foreground">
+                <SelectValue placeholder="— Semua —">
+                  {field.value ? (unitKerja.find((u) => u.id === field.value)?.nama ?? field.value) : null}
+                </SelectValue>
+              </SelectTrigger>
               <SelectContent className="border-border">
                 {unitKerja.map((u) => <SelectItem key={u.id} value={u.id}>{u.nama}</SelectItem>)}
               </SelectContent>
