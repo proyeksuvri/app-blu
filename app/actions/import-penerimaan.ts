@@ -80,28 +80,39 @@ export async function commitImport(rows: ImportPreviewRow[]): Promise<{ ok: bool
   if (validRows.length === 0) return { ok: false, pesan: "Tidak ada baris valid untuk diimpor" }
   if (validRows.length > 500) return { ok: false, pesan: "Maksimal 500 baris per import" }
 
-  // Generate nomor bukti untuk setiap baris
-  const inserts = await Promise.all(
-    validRows.map(async (row) => {
-      const tahun = new Date(row.tanggal_terima).getFullYear()
-      const { data: nomor } = await sb.rpc("fn_generate_nomor_bukti", { p_tahun: tahun })
-      return {
-        nomor_bukti: nomor as string,
-        tanggal_terima: row.tanggal_terima,
-        jenis_pendapatan_id: row.jenis_id!,
-        sub_pendapatan_id: row.sub_id || null,
-        unit_kerja_id: row.unit_id!,
-        rekening_bank_id: row.rekening_id!,
-        jenis_pemindahan_kas_id: row.metode_id!,
-        jumlah: row.jumlah,
-        nomor_referensi: row.nomor_referensi || null,
-        uraian: row.uraian || null,
-        status: "draft" as const,
-        created_by: profile.id,
-        updated_by: profile.id,
-      }
+  // Group baris per tahun, generate nomor bukti batch per tahun
+  const tahunGroups = new Map<number, number[]>()
+  validRows.forEach((_, i) => {
+    const tahun = new Date(validRows[i].tanggal_terima).getFullYear()
+    if (!tahunGroups.has(tahun)) tahunGroups.set(tahun, [])
+    tahunGroups.get(tahun)!.push(i)
+  })
+
+  const nomorMap = new Map<number, string>() // index → nomor_bukti
+  for (const [tahun, indices] of tahunGroups) {
+    const { data: nomorList, error: nomorError } = await sb.rpc("fn_generate_nomor_bukti_batch", {
+      p_tahun: tahun,
+      p_count: indices.length,
     })
-  )
+    if (nomorError || !nomorList) return { ok: false, pesan: "Gagal generate nomor bukti" }
+    indices.forEach((rowIdx, i) => nomorMap.set(rowIdx, (nomorList as string[])[i]))
+  }
+
+  const inserts = validRows.map((row, i) => ({
+    nomor_bukti: nomorMap.get(i)!,
+    tanggal_terima: row.tanggal_terima,
+    jenis_pendapatan_id: row.jenis_id!,
+    sub_pendapatan_id: row.sub_id || null,
+    unit_kerja_id: row.unit_id!,
+    rekening_bank_id: row.rekening_id!,
+    jenis_pemindahan_kas_id: row.metode_id!,
+    jumlah: row.jumlah,
+    nomor_referensi: row.nomor_referensi || null,
+    uraian: row.uraian || null,
+    status: "draft" as const,
+    created_by: profile.id,
+    updated_by: profile.id,
+  }))
 
   const { error } = await sb.from("penerimaan").insert(inserts)
   if (error) return { ok: false, pesan: error.message }
