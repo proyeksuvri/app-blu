@@ -36,14 +36,23 @@ export async function getDashboardStats() {
 
     // Transaksi hari ini
     sb.from("penerimaan")
-      .select("jumlah")
+      .select("jumlah, status")
       .gte("tanggal_terima", tglAkhir)
       .lte("tanggal_terima", tglAkhir)
       .in("status", ["draft", "verified"])
-      .then(({ data }) => ({
-        count: (data ?? []).length,
-        total: (data ?? []).reduce((s, r) => s + Number(r.jumlah), 0),
-      })),
+      .then(({ data }) => {
+        const rows = data ?? []
+        const verified = rows.filter((r) => r.status === "verified")
+        const draft = rows.filter((r) => r.status === "draft")
+        return {
+          count: rows.length,
+          total: rows.reduce((s, r) => s + Number(r.jumlah), 0),
+          verifiedTotal: verified.reduce((s, r) => s + Number(r.jumlah), 0),
+          verifiedCount: verified.length,
+          draftTotal: draft.reduce((s, r) => s + Number(r.jumlah), 0),
+          draftCount: draft.length,
+        }
+      }),
 
     // 5 transaksi terbaru
     sb.from("penerimaan")

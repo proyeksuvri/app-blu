@@ -46,9 +46,13 @@ export default async function DashboardPage() {
         />
         <StatCard
           icon={<Banknote className="h-4 w-4" />}
-          label="Penerimaan Hari Ini"
-          value={rupiah(stats.hariIni.total)}
-          sub={`${stats.hariIni.count} transaksi`}
+          label="Penerimaan Hari Ini (Verified)"
+          value={rupiah(stats.hariIni.verifiedTotal)}
+          sub={
+            stats.hariIni.draftCount > 0
+              ? `${stats.hariIni.verifiedCount} verified · ${stats.hariIni.draftCount} pending`
+              : `${stats.hariIni.verifiedCount} transaksi`
+          }
           color="blue"
         />
         {(isAdmin || isPimpinan) && (
