@@ -134,9 +134,11 @@ export async function updatePenerimaan(id: string, input: PenerimaanInput): Prom
 }
 
 export async function deletePenerimaan(id: string): Promise<ActionResult> {
-  await requireRole(["OPERATOR", "ADMIN"])
+  const profile = await requireRole(["OPERATOR", "ADMIN"])
   const sb = await createClient()
-  const { error } = await sb.from("penerimaan").delete().eq("id", id).eq("status", "draft")
+  let q = sb.from("penerimaan").delete().eq("id", id)
+  if (profile.role.kode !== "ADMIN") q = q.eq("status", "draft")
+  const { error } = await q
   if (error) return { ok: false, pesan: error.message }
   revalidatePath("/penerimaan")
   return { ok: true, data: undefined }
@@ -150,6 +152,17 @@ export async function verifyPenerimaan(id: string): Promise<ActionResult> {
   revalidatePath("/penerimaan")
   revalidatePath(`/penerimaan/${id}`)
   return { ok: true, data: undefined }
+}
+
+export async function bulkDeletePenerimaan(ids: string[]): Promise<ActionResult<{ berhasil: number; gagal: number }>> {
+  await requireRole(["ADMIN"])
+  if (ids.length === 0) return { ok: false, pesan: "Tidak ada transaksi dipilih" }
+  if (ids.length > 100) return { ok: false, pesan: "Maksimal 100 transaksi sekaligus" }
+  const sb = await createClient()
+  const { error, count } = await sb.from("penerimaan").delete({ count: "exact" }).in("id", ids)
+  if (error) return { ok: false, pesan: error.message }
+  revalidatePath("/penerimaan")
+  return { ok: true, data: { berhasil: count ?? ids.length, gagal: 0 } }
 }
 
 export async function bulkVerifyPenerimaan(ids: string[]): Promise<ActionResult<{ berhasil: number; gagal: number }>> {

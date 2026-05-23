@@ -43,11 +43,14 @@ export function PenerimaanActions({ id, status, isAdmin, canEdit, isOwner }: Pro
   }
 
   function handleDelete() {
-    if (!confirm("Hapus draft ini? Tindakan tidak bisa dibatalkan.")) return
+    const msg = status === "draft"
+      ? "Hapus draft ini? Tindakan tidak bisa dibatalkan."
+      : `Hapus transaksi ${status} ini secara permanen? Tindakan tidak bisa dibatalkan.`
+    if (!confirm(msg)) return
     startTransition(async () => {
       const result = await deletePenerimaan(id)
       if (!result.ok) { toast.error(result.pesan); return }
-      toast.success("Draft dihapus")
+      toast.success("Transaksi dihapus")
       router.push("/penerimaan")
     })
   }
@@ -77,7 +80,7 @@ export function PenerimaanActions({ id, status, isAdmin, canEdit, isOwner }: Pro
         </Button>
       )}
 
-      {status === "draft" && (isOwner || isAdmin) && (
+      {(status === "draft" ? (isOwner || isAdmin) : isAdmin) && (
         <Button variant="ghost" size="sm" onClick={handleDelete} disabled={pending}
           className="text-red-400/70 hover:text-red-400 hover:bg-red-500/10">
           Hapus

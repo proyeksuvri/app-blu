@@ -4,7 +4,7 @@ import { useState, useTransition } from "react"
 import Link from "next/link"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
-import { X, CheckCheck } from "lucide-react"
+import { X, CheckCheck, Trash2 } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button"
 import { PenerimaanStatusBadge } from "@/components/penerimaan-status-badge"
 import { EmptyState } from "@/components/empty-state"
 import { toast } from "sonner"
-import { bulkVerifyPenerimaan } from "@/app/actions/penerimaan"
+import { bulkVerifyPenerimaan, bulkDeletePenerimaan } from "@/app/actions/penerimaan"
 
 const rupiah = (n: number) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n)
@@ -31,14 +31,20 @@ export function PenerimaanTable({ data, isAdmin }: { data: Row[]; isAdmin: boole
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [pending, startTransition] = useTransition()
 
+  const allIds = data.map((r) => r.id)
   const draftIds = data.filter((r) => r.status === "draft").map((r) => r.id)
-  const allDraftSelected = draftIds.length > 0 && draftIds.every((id) => selected.has(id))
+  const allSelected = allIds.length > 0 && allIds.every((id) => selected.has(id))
+  const selectedArray = Array.from(selected)
+  const allSelectedAreDraft = selectedArray.length > 0 && selectedArray.every((id) => {
+    const row = data.find((r) => r.id === id)
+    return row?.status === "draft"
+  })
 
   function toggleSelectAll() {
-    if (allDraftSelected) {
+    if (allSelected) {
       setSelected(new Set())
     } else {
-      setSelected(new Set(draftIds))
+      setSelected(new Set(allIds))
     }
   }
 
@@ -52,7 +58,7 @@ export function PenerimaanTable({ data, isAdmin }: { data: Row[]; isAdmin: boole
 
   function handleBulkVerify() {
     startTransition(async () => {
-      const result = await bulkVerifyPenerimaan(Array.from(selected))
+      const result = await bulkVerifyPenerimaan(draftIds.filter((id) => selected.has(id)))
       if (!result.ok) { toast.error(result.pesan); return }
       const { berhasil, gagal } = result.data
       if (gagal > 0) {
@@ -60,6 +66,16 @@ export function PenerimaanTable({ data, isAdmin }: { data: Row[]; isAdmin: boole
       } else {
         toast.success(`${berhasil} transaksi berhasil diverifikasi`)
       }
+      setSelected(new Set())
+    })
+  }
+
+  function handleBulkDelete() {
+    if (!confirm(`Hapus ${selected.size} transaksi secara permanen? Tindakan tidak bisa dibatalkan.`)) return
+    startTransition(async () => {
+      const result = await bulkDeletePenerimaan(selectedArray)
+      if (!result.ok) { toast.error(result.pesan); return }
+      toast.success(`${result.data.berhasil} transaksi dihapus`)
       setSelected(new Set())
     })
   }
@@ -76,9 +92,8 @@ export function PenerimaanTable({ data, isAdmin }: { data: Row[]; isAdmin: boole
               {isAdmin && (
                 <TableHead className="w-10 pl-4">
                   <Checkbox
-                    checked={allDraftSelected}
+                    checked={allSelected}
                     onCheckedChange={toggleSelectAll}
-                    disabled={draftIds.length === 0}
                     className="border-border data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
                   />
                 </TableHead>
@@ -93,7 +108,6 @@ export function PenerimaanTable({ data, isAdmin }: { data: Row[]; isAdmin: boole
           </TableHeader>
           <TableBody>
             {data.map((row) => {
-              const isDraft = row.status === "draft"
               const isChecked = selected.has(row.id)
               return (
                 <TableRow
@@ -102,13 +116,11 @@ export function PenerimaanTable({ data, isAdmin }: { data: Row[]; isAdmin: boole
                 >
                   {isAdmin && (
                     <TableCell className="pl-4 py-3 w-10">
-                      {isDraft && (
-                        <Checkbox
-                          checked={isChecked}
-                          onCheckedChange={() => toggleRow(row.id)}
-                          className="border-border data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
-                        />
-                      )}
+                      <Checkbox
+                        checked={isChecked}
+                        onCheckedChange={() => toggleRow(row.id)}
+                        className="border-border data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                      />
                     </TableCell>
                   )}
                   <TableCell className="py-3">
@@ -154,14 +166,26 @@ export function PenerimaanTable({ data, isAdmin }: { data: Row[]; isAdmin: boole
             <X className="h-3.5 w-3.5" />
             Batalkan
           </Button>
+          {allSelectedAreDraft && (
+            <Button
+              size="sm"
+              onClick={handleBulkVerify}
+              disabled={pending}
+              className="gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              <CheckCheck className="h-3.5 w-3.5" />
+              {pending ? "Memverifikasi..." : `Verifikasi (${selected.size})`}
+            </Button>
+          )}
           <Button
             size="sm"
-            onClick={handleBulkVerify}
+            variant="outline"
+            onClick={handleBulkDelete}
             disabled={pending}
-            className="gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
+            className="gap-1.5 border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-400"
           >
-            <CheckCheck className="h-3.5 w-3.5" />
-            {pending ? "Memverifikasi..." : `Verifikasi (${selected.size})`}
+            <Trash2 className="h-3.5 w-3.5" />
+            {pending ? "Menghapus..." : `Hapus (${selected.size})`}
           </Button>
         </div>
       )}
