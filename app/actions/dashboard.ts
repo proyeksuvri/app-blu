@@ -143,10 +143,8 @@ export async function getDashboardStats() {
   }
 }
 
-export async function getDraftCount(): Promise<number> {
-  const profile = await getCurrentProfile()
-  if (!profile) return 0
-  if (profile.role.kode !== "ADMIN" && profile.role.kode !== "PIMPINAN") return 0
+export async function getDraftCount(roleKode: string): Promise<number> {
+  if (roleKode !== "ADMIN" && roleKode !== "PIMPINAN") return 0
   const sb = await createClient()
   const { count } = await sb
     .from("penerimaan")

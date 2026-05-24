@@ -39,6 +39,15 @@ export function ImportClient() {
   const [dragOver, setDragOver] = useState(false)
 
   function processFile(file: File) {
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Ukuran file maksimal 10MB")
+      return
+    }
+    const ext = file.name.split(".").pop()?.toLowerCase()
+    if (!ext || !["xlsx", "xls", "csv"].includes(ext)) {
+      toast.error("Format tidak didukung. Gunakan .xlsx, .xls, atau .csv")
+      return
+    }
     const reader = new FileReader()
     reader.onload = async (e) => {
       try {

@@ -19,18 +19,21 @@ export function LoginForm() {
     setIsLoading(true)
 
     const form = e.currentTarget
-    const email = (form.elements.namedItem("email") as HTMLInputElement).value
-    const password = (form.elements.namedItem("password") as HTMLInputElement).value
+    const email = (form.elements.namedItem("email") as HTMLInputElement)?.value ?? ""
+    const password = (form.elements.namedItem("password") as HTMLInputElement)?.value ?? ""
 
-    const result = await actionLogin(email, password)
-
-    if (!result.ok) {
-      setError(result.pesan)
+    try {
+      const result = await actionLogin(email, password)
+      if (!result.ok) {
+        setError(result.pesan)
+        return
+      }
+      window.location.href = "/dashboard"
+    } catch {
+      setError("Terjadi kesalahan koneksi. Coba lagi.")
+    } finally {
       setIsLoading(false)
-      return
     }
-
-    window.location.href = "/dashboard"
   }
 
   return (

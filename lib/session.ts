@@ -1,3 +1,4 @@
+import { cache } from "react"
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 
@@ -20,7 +21,7 @@ export type Profile = {
   } | null
 }
 
-export async function getCurrentProfile(): Promise<Profile | null> {
+export const getCurrentProfile = cache(async (): Promise<Profile | null> => {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
@@ -60,7 +61,7 @@ export async function getCurrentProfile(): Promise<Profile | null> {
     role,
     unit_kerja: resolveOne(row.unit_kerja),
   }
-}
+})
 
 export async function requireRole(roles: string[]): Promise<Profile> {
   const profile = await getCurrentProfile()

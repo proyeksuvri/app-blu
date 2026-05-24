@@ -3,8 +3,11 @@
 import { createClient } from "@/lib/supabase/server"
 import { requireRole } from "@/lib/session"
 
+const ISO_DATE_RE = /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/
+
 export async function rekapHarian(tanggal: string) {
   await requireRole(["ADMIN", "PIMPINAN"])
+  if (!ISO_DATE_RE.test(tanggal)) return { rows: [], total: 0 }
   const sb = await createClient()
 
   const { data, error } = await sb
@@ -41,6 +44,7 @@ export async function rekapHarian(tanggal: string) {
 
 export async function rekapBulanan(tahun: number, bulan: number) {
   await requireRole(["ADMIN", "PIMPINAN"])
+  if (bulan < 1 || bulan > 12) return { byKategori: [], total: 0 }
   const sb = await createClient()
 
   const tglAwal = `${tahun}-${String(bulan).padStart(2, "0")}-01`
@@ -85,6 +89,9 @@ export async function rekapBulanan(tahun: number, bulan: number) {
 
 export async function rekapPerRekening(tglAwal: string, tglAkhir: string) {
   await requireRole(["ADMIN", "PIMPINAN"])
+  if (!ISO_DATE_RE.test(tglAwal) || !ISO_DATE_RE.test(tglAkhir)) return { byRekening: [], total: 0 }
+  const diffMs = new Date(tglAkhir).getTime() - new Date(tglAwal).getTime()
+  if (diffMs < 0 || diffMs > 366 * 24 * 60 * 60 * 1000) return { byRekening: [], total: 0 }
   const sb = await createClient()
 
   const { data, error } = await sb

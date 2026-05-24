@@ -46,11 +46,13 @@ export async function parseImportData(rows: ImportRow[]): Promise<ImportPreviewR
   const rekMap   = Object.fromEntries((rekening.data ?? []).map((r) => [r.kode, r.id]))
   const metodeMap = Object.fromEntries((metode.data ?? []).map((r) => [r.kode, r.id]))
 
+  const ISO_DATE_RE = /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/
+
   return rows.map((row) => {
     const errors: string[] = []
 
-    if (!row.tanggal_terima || isNaN(Date.parse(row.tanggal_terima))) {
-      errors.push("tanggal_terima tidak valid")
+    if (!row.tanggal_terima || !ISO_DATE_RE.test(row.tanggal_terima)) {
+      errors.push("tanggal_terima tidak valid (format: YYYY-MM-DD)")
     }
     if (!row.jumlah || isNaN(row.jumlah) || row.jumlah <= 0) {
       errors.push("jumlah harus angka positif")

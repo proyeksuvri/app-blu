@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
@@ -125,7 +125,7 @@ const SEGMENT_LABELS: Record<string, string> = {
 }
 
 function isUUID(s: string) {
-  return /^[0-9a-f-]{36}$/i.test(s)
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)
 }
 
 function HeaderBreadcrumb() {
@@ -177,16 +177,19 @@ function CommandSearch({ profile }: { profile: Profile }) {
     return () => document.removeEventListener("keydown", handler)
   }, [])
 
-  const allItems: { label: string; href: string }[] = []
-  for (const item of menuItems) {
-    if (item.children) {
-      for (const child of item.children) {
-        allItems.push({ label: `${item.label} — ${child.label}`, href: child.href })
+  const allItems = useMemo(() => {
+    const items: { label: string; href: string }[] = []
+    for (const item of menuItems) {
+      if (item.children) {
+        for (const child of item.children) {
+          items.push({ label: `${item.label} — ${child.label}`, href: child.href })
+        }
+      } else {
+        items.push({ label: item.label, href: item.href })
       }
-    } else {
-      allItems.push({ label: item.label, href: item.href })
     }
-  }
+    return items
+  }, [menuItems])
 
   return (
     <>

@@ -100,6 +100,15 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 **Guidelines berhasil jika:** diff lebih bersih, lebih sedikit rewrite karena overcomplication, pertanyaan klarifikasi datang sebelum implementasi bukan setelah kesalahan.
 
+## gstack
+
+Gunakan skill `/browse` dari gstack untuk semua penjelajahan web. Jangan pernah gunakan alat `mcp__claude-in-chrome__*`.
+
+Skill yang tersedia:
+`/office-hours`, `/plan-ceo-review`, `/plan-eng-review`, `/plan-design-review`, `/design-consultation`, `/design-shotgun`, `/design-html`, `/review`, `/ship`, `/land-and-deploy`, `/canary`, `/benchmark`, `/browse`, `/connect-chrome`, `/qa`, `/qa-only`, `/design-review`, `/setup-browser-cookies`, `/setup-deploy`, `/setup-gbrain`, `/retro`, `/investigate`, `/document-release`, `/document-generate`, `/codex`, `/cso`, `/autoplan`, `/plan-devex-review`, `/devex-review`, `/careful`, `/freeze`, `/guard`, `/unfreeze`, `/gstack-upgrade`, `/learn`
+
+---
+
 ## 5. Shadcn Component Rule
 
 **Selalu cek MCP shadcn sebelum implement komponen UI apapun.**

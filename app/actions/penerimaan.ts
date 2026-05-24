@@ -118,10 +118,16 @@ export async function createPenerimaan(input: PenerimaanInput): Promise<ActionRe
 }
 
 export async function updatePenerimaan(id: string, input: PenerimaanInput): Promise<ActionResult> {
-  const profile = await getCurrentProfile()
-  if (!profile) return { ok: false, pesan: "Tidak terautentikasi" }
-
+  const profile = await requireRole(["OPERATOR", "ADMIN"])
   const sb = await createClient()
+
+  if (profile.role.kode !== "ADMIN") {
+    const { data: existing } = await sb.from("penerimaan").select("status, created_by").eq("id", id).single()
+    if (!existing) return { ok: false, pesan: "Penerimaan tidak ditemukan" }
+    if (existing.status !== "draft") return { ok: false, pesan: "Hanya draft yang dapat diubah" }
+    if (existing.created_by !== profile.id) return { ok: false, pesan: "Tidak diizinkan mengubah data milik pengguna lain" }
+  }
+
   const { error } = await sb.from("penerimaan").update({
     ...input,
     sub_pendapatan_id: input.sub_pendapatan_id || null,
@@ -129,7 +135,7 @@ export async function updatePenerimaan(id: string, input: PenerimaanInput): Prom
     nomor_referensi: input.nomor_referensi || null,
     uraian: input.uraian || null,
     updated_by: profile.id,
-  }).eq("id", id)
+  }).eq("id", id).eq("status", "draft")
 
   if (error) return { ok: false, pesan: error.message }
   revalidatePath("/penerimaan")
@@ -141,7 +147,9 @@ export async function deletePenerimaan(id: string): Promise<ActionResult> {
   const profile = await requireRole(["OPERATOR", "ADMIN"])
   const sb = await createClient()
   let q = sb.from("penerimaan").delete().eq("id", id)
-  if (profile.role.kode !== "ADMIN") q = q.eq("status", "draft")
+  if (profile.role.kode !== "ADMIN") {
+    q = q.eq("status", "draft").eq("created_by", profile.id)
+  }
   const { error } = await q
   if (error) return { ok: false, pesan: error.message }
   revalidatePath("/penerimaan")

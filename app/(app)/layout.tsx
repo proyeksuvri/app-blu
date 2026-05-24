@@ -8,7 +8,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!profile) redirect("/")
   if (!profile.is_active) redirect("/")
 
-  const draftCount = await getDraftCount()
+  const draftCount = await getDraftCount(profile.role.kode).catch(() => 0)
 
   return <AppShell profile={profile} draftCount={draftCount}>{children}</AppShell>
 }
