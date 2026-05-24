@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import React, { useState, useEffect, useMemo } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
@@ -143,18 +143,18 @@ function HeaderBreadcrumb() {
           const href = "/" + segments.slice(0, i + 1).join("/")
 
           return (
-            <BreadcrumbItem key={href}>
-              {isLast ? (
-                <BreadcrumbPage className="text-xs">{label}</BreadcrumbPage>
-              ) : (
-                <>
+            <React.Fragment key={href}>
+              <BreadcrumbItem>
+                {isLast ? (
+                  <BreadcrumbPage className="text-xs">{label}</BreadcrumbPage>
+                ) : (
                   <BreadcrumbLink render={<Link href={href} />} className="text-xs">
                     {label}
                   </BreadcrumbLink>
-                  <BreadcrumbSeparator />
-                </>
-              )}
-            </BreadcrumbItem>
+                )}
+              </BreadcrumbItem>
+              {!isLast && <BreadcrumbSeparator />}
+            </React.Fragment>
           )
         })}
       </BreadcrumbList>
