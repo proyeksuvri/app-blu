@@ -10,6 +10,7 @@ type ActionResult<T = void> =
 
 export type PenerimaanFilter = {
   status?: "draft" | "verified" | "void"
+  statuses?: string[]
   tgl_awal?: string
   tgl_akhir?: string
   jenis_id?: string
@@ -40,7 +41,8 @@ export async function listPenerimaan(filter: PenerimaanFilter = {}) {
     verified_at, voided_at
   `, { count: "exact" })
 
-  if (filter.status) q = q.eq("status", filter.status)
+  if (filter.statuses?.length) q = q.in("status", filter.statuses)
+  else if (filter.status) q = q.eq("status", filter.status)
   if (filter.tgl_awal) q = q.gte("tanggal_terima", filter.tgl_awal)
   if (filter.tgl_akhir) q = q.lte("tanggal_terima", filter.tgl_akhir)
   if (filter.jenis_id) q = q.eq("jenis_pendapatan_id", filter.jenis_id)

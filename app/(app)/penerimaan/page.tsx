@@ -3,16 +3,17 @@ import Link from "next/link"
 import { getCurrentProfile } from "@/lib/session"
 import { redirect } from "next/navigation"
 import { listPenerimaan } from "@/app/actions/penerimaan"
+import { listJenis } from "@/app/actions/master"
 import { PageHeader } from "@/components/page-header"
 import { Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { PenerimaanTable } from "./_components/penerimaan-table"
-import { StatusTabs } from "./_components/status-tabs"
+import { PenerimaanFilters } from "./_components/penerimaan-filters"
 
 export default async function PenerimaanPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; page?: string; sort?: string; order?: string }>
+  searchParams: Promise<{ status?: string; jenis_id?: string; page?: string; sort?: string; order?: string }>
 }) {
   const profile = await getCurrentProfile()
   if (!profile) redirect("/")
@@ -22,15 +23,23 @@ export default async function PenerimaanPage({
     ? params.sort : "tanggal_terima") as "tanggal_terima" | "jumlah" | "nomor_bukti"
   const order = params.order === "asc" ? "asc" : "desc"
 
-  const { data, count } = await listPenerimaan({
-    status: params.status as "draft" | "verified" | "void" | undefined,
-    page: params.page ? parseInt(params.page) : 1,
-    sort,
-    order,
-  })
+  const statuses = (params.status ?? "").split(",").filter(Boolean)
+
+  const [{ data, count }, jenisList] = await Promise.all([
+    listPenerimaan({
+      statuses: statuses.length ? statuses : undefined,
+      jenis_id: params.jenis_id,
+      page: params.page ? parseInt(params.page) : 1,
+      sort,
+      order,
+    }),
+    listJenis(),
+  ])
 
   const isOperator = profile.role.kode === "OPERATOR"
   const isAdmin = profile.role.kode === "ADMIN"
+
+  const jenisOptions = jenisList.map((j) => ({ value: j.id, label: j.nama }))
 
   return (
     <div className="flex flex-col gap-6">
@@ -48,7 +57,7 @@ export default async function PenerimaanPage({
       />
 
       <Suspense>
-        <StatusTabs />
+        <PenerimaanFilters jenisOptions={jenisOptions} />
       </Suspense>
 
       <Suspense>
