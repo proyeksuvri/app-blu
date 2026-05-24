@@ -2,7 +2,7 @@ import { redirect } from "next/navigation"
 import Link from "next/link"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
-import { Banknote, Clock, TrendingUp, ArrowRight, Plus } from "lucide-react"
+import { ArrowRight, Plus } from "lucide-react"
 import { getDashboardStats } from "@/app/actions/dashboard"
 import { PenerimaanStatusBadge } from "@/components/penerimaan-status-badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -38,13 +38,11 @@ export default async function DashboardPage() {
       {/* Stat cards */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
         <StatCard
-          icon={<TrendingUp className="h-4 w-4" />}
           label="Total Verified Bulan Ini"
           value={rupiah(stats.totalBulanIni)}
           color="green"
         />
         <StatCard
-          icon={<Banknote className="h-4 w-4" />}
           label="Penerimaan Hari Ini (Verified)"
           value={rupiah(stats.hariIni.verifiedTotal)}
           sub={
@@ -56,7 +54,6 @@ export default async function DashboardPage() {
         />
         {(isAdmin || isPimpinan) && (
           <StatCard
-            icon={<Clock className="h-4 w-4" />}
             label="Menunggu Verifikasi"
             value={String(stats.draftCount)}
             sub="transaksi draft"
@@ -145,33 +142,27 @@ export default async function DashboardPage() {
 }
 
 function StatCard({
-  icon, label, value, sub, color, href,
+  label, value, sub, color, href,
 }: {
-  icon: React.ReactNode
   label: string
   value: string
   sub?: string
   color: "green" | "blue" | "amber" | "default"
   href?: string
 }) {
-  const colors = {
-    green:   "text-green-400  bg-green-500/10  ring-green-500/20",
-    blue:    "text-blue-400   bg-blue-500/10   ring-blue-500/20",
-    amber:   "text-amber-400  bg-amber-500/10  ring-amber-500/20",
-    default: "text-muted-foreground bg-muted/50 ring-border",
+  const valueColors = {
+    green:   "text-green-400",
+    blue:    "text-foreground",
+    amber:   "text-amber-400",
+    default: "text-foreground",
   }
 
   const inner = (
     <Card>
-      <CardContent className="flex flex-col gap-3">
-        <div className={`inline-flex h-8 w-8 items-center justify-center rounded-lg ring-1 ${colors[color]}`}>
-          {icon}
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground">{label}</p>
-          <p className="mt-1 text-xl font-semibold text-foreground">{value}</p>
-          {sub && <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>}
-        </div>
+      <CardContent className="flex flex-col gap-1.5 py-4">
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className={`text-xl font-semibold ${valueColors[color]}`}>{value}</p>
+        {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
       </CardContent>
     </Card>
   )
