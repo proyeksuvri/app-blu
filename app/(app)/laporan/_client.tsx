@@ -191,7 +191,7 @@ export function LaporanClient({ initialHarian, initialBulanan, initialRekening }
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex gap-2">
-              <Select value={String(bulan)} onValueChange={(v) => fetchBulanan(tahun, parseInt(v))}>
+              <Select value={String(bulan)} onValueChange={(v) => v && fetchBulanan(tahun, parseInt(v))}>
                 <SelectTrigger className="w-36 bg-muted/50 border-border text-foreground">
                   <span className="flex flex-1 text-left text-sm truncate">{BULAN[bulan - 1]}</span>
                 </SelectTrigger>
@@ -199,7 +199,7 @@ export function LaporanClient({ initialHarian, initialBulanan, initialRekening }
                   {BULAN.map((b, i) => <SelectItem key={i + 1} value={String(i + 1)}>{b}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <Select value={String(tahun)} onValueChange={(v) => fetchBulanan(parseInt(v), bulan)}>
+              <Select value={String(tahun)} onValueChange={(v) => v && fetchBulanan(parseInt(v), bulan)}>
                 <SelectTrigger className="w-28 bg-muted/50 border-border text-foreground">
                   <span className="flex flex-1 text-left text-sm truncate">{tahun}</span>
                 </SelectTrigger>
