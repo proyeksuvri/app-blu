@@ -1,14 +1,38 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   Building2, LayoutDashboard, BarChart3,
-  Users, LogOut, ChevronRight, Banknote, BookOpen,
+  Users, LogOut, ChevronRight, Banknote, BookOpen, Search,
 } from "lucide-react"
 import { cn, getInitials } from "@/lib/utils"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
+import {
+  Command,
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { actionLogout } from "@/app/actions/auth"
 import { ThemeToggle } from "@/components/theme-toggle"
 import type { Profile } from "@/lib/session"
@@ -82,6 +106,121 @@ function getMenuItems(role: string): MenuItem[] {
   if (role === "OPERATOR") return [...common, ...operatorMenu]
   if (role === "PIMPINAN") return [...common, ...pimpinanMenu]
   return common
+}
+
+const SEGMENT_LABELS: Record<string, string> = {
+  dashboard: "Dashboard",
+  penerimaan: "Penerimaan",
+  baru: "Input Baru",
+  import: "Import",
+  master: "Master Data",
+  "kategori-pendapatan": "Kategori Pendapatan",
+  "jenis-pendapatan": "Jenis Pendapatan",
+  "sub-pendapatan": "Sub Pendapatan",
+  "unit-kerja": "Unit Kerja",
+  "rekening-bank": "Rekening Bank",
+  "jenis-pemindahan-kas": "Jenis Pemindahan Kas",
+  pengguna: "Pengguna",
+  laporan: "Laporan",
+}
+
+function isUUID(s: string) {
+  return /^[0-9a-f-]{36}$/i.test(s)
+}
+
+function HeaderBreadcrumb() {
+  const pathname = usePathname()
+  const segments = pathname.split("/").filter(Boolean)
+
+  if (segments.length === 0) return null
+
+  return (
+    <Breadcrumb>
+      <BreadcrumbList>
+        {segments.map((seg, i) => {
+          const isLast = i === segments.length - 1
+          const label = isUUID(seg) ? "Detail" : (SEGMENT_LABELS[seg] ?? seg)
+          const href = "/" + segments.slice(0, i + 1).join("/")
+
+          return (
+            <BreadcrumbItem key={href}>
+              {isLast ? (
+                <BreadcrumbPage className="text-xs">{label}</BreadcrumbPage>
+              ) : (
+                <>
+                  <BreadcrumbLink render={<Link href={href} />} className="text-xs">
+                    {label}
+                  </BreadcrumbLink>
+                  <BreadcrumbSeparator />
+                </>
+              )}
+            </BreadcrumbItem>
+          )
+        })}
+      </BreadcrumbList>
+    </Breadcrumb>
+  )
+}
+
+function CommandSearch({ profile }: { profile: Profile }) {
+  const [open, setOpen] = useState(false)
+  const menuItems = getMenuItems(profile.role.kode)
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault()
+        setOpen(true)
+      }
+    }
+    document.addEventListener("keydown", handler)
+    return () => document.removeEventListener("keydown", handler)
+  }, [])
+
+  const allItems: { label: string; href: string }[] = []
+  for (const item of menuItems) {
+    if (item.children) {
+      for (const child of item.children) {
+        allItems.push({ label: `${item.label} — ${child.label}`, href: child.href })
+      }
+    } else {
+      allItems.push({ label: item.label, href: item.href })
+    }
+  }
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted/50 transition-colors"
+      >
+        <Search className="h-3.5 w-3.5" />
+        <span className="hidden sm:inline">Cari...</span>
+        <kbd className="hidden sm:inline ml-1 rounded bg-muted px-1 text-[10px]">⌘K</kbd>
+      </button>
+      <CommandDialog open={open} onOpenChange={setOpen} title="Navigasi" description="Cari halaman">
+        <Command>
+          <CommandInput placeholder="Cari halaman..." />
+          <CommandList>
+            <CommandEmpty>Tidak ditemukan.</CommandEmpty>
+            <CommandGroup heading="Navigasi">
+              {allItems.map((item) => (
+                <CommandItem
+                  key={item.href}
+                  onSelect={() => {
+                    setOpen(false)
+                    window.location.href = item.href
+                  }}
+                >
+                  {item.label}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </CommandDialog>
+    </>
+  )
 }
 
 function NavItem({ item }: { item: MenuItem }) {
@@ -233,9 +372,11 @@ function AppSidebar({ profile }: { profile: Profile }) {
 export function AppShell({
   children,
   profile,
+  draftCount = 0,
 }: {
   children: React.ReactNode
   profile: Profile
+  draftCount?: number
 }) {
   return (
     <SidebarProvider>
@@ -243,18 +384,43 @@ export function AppShell({
       <SidebarInset>
         <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-4">
           <SidebarTrigger />
-          <span className="text-sm font-medium text-foreground/70 md:hidden">BLU UIN Palopo</span>
+          <div className="hidden md:flex items-center gap-2">
+            <div className="h-4 w-px bg-border" />
+            <HeaderBreadcrumb />
+          </div>
           <div className="ml-auto flex items-center gap-2">
-            <span className="hidden sm:block text-xs text-foreground/60">{profile.nama_lengkap}</span>
-            <Avatar className="h-7 w-7">
-              <AvatarFallback className="text-[10px] bg-primary/15 text-primary">
-                {getInitials(profile.nama_lengkap)}
-              </AvatarFallback>
-            </Avatar>
+            {draftCount > 0 && (
+              <Link href="/penerimaan?status=draft">
+                <Badge variant="destructive" className="text-[10px] px-1.5 py-0.5 h-auto">
+                  {draftCount} draft
+                </Badge>
+              </Link>
+            )}
+            <CommandSearch profile={profile} />
+            <DropdownMenu>
+              <DropdownMenuTrigger className="flex items-center gap-2 rounded-md p-1 hover:bg-muted/50 transition-colors outline-none">
+                <span className="hidden sm:block text-xs text-foreground/60">{profile.nama_lengkap}</span>
+                <Avatar className="h-7 w-7">
+                  <AvatarFallback className="text-[10px] bg-primary/15 text-primary">
+                    {getInitials(profile.nama_lengkap)}
+                  </AvatarFallback>
+                </Avatar>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-40">
+                <form action={actionLogout} className="w-full">
+                  <DropdownMenuItem nativeButton={true} render={<button type="submit" className="w-full" />}>
+                    <LogOut className="h-3.5 w-3.5" />
+                    Keluar
+                  </DropdownMenuItem>
+                </form>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
         <main className="flex flex-1 flex-col overflow-y-auto p-4 lg:p-6">
-          {children}
+          <div className="mx-auto w-full max-w-7xl">
+            {children}
+          </div>
         </main>
       </SidebarInset>
     </SidebarProvider>

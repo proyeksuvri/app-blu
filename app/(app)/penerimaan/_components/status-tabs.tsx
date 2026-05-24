@@ -22,6 +22,7 @@ export function StatusTabs() {
           <TabsTrigger
             key={tab.value}
             value={tab.value}
+            nativeButton={false}
             render={<Link href={tab.value ? `/penerimaan?status=${tab.value}` : "/penerimaan"} />}
           >
             {tab.label}

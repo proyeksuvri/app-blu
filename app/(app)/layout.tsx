@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation"
 import { getCurrentProfile } from "@/lib/session"
+import { getDraftCount } from "@/app/actions/dashboard"
 import { AppShell } from "@/components/app-shell"
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -7,5 +8,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!profile) redirect("/")
   if (!profile.is_active) redirect("/")
 
-  return <AppShell profile={profile}>{children}</AppShell>
+  const draftCount = await getDraftCount()
+
+  return <AppShell profile={profile} draftCount={draftCount}>{children}</AppShell>
 }

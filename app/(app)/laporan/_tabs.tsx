@@ -18,7 +18,7 @@ export function LaporanTabs() {
     <Tabs value={active}>
       <TabsList variant="line">
         {tabs.map((tab) => (
-          <TabsTrigger key={tab.value} value={tab.value} render={<Link href={tab.href} />}>
+          <TabsTrigger key={tab.value} value={tab.value} nativeButton={false} render={<Link href={tab.href} />}>
             {tab.label}
           </TabsTrigger>
         ))}

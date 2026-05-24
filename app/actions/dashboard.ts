@@ -142,3 +142,15 @@ export async function getDashboardStats() {
     unitNama: profile.unit_kerja?.nama ?? null,
   }
 }
+
+export async function getDraftCount(): Promise<number> {
+  const profile = await getCurrentProfile()
+  if (!profile) return 0
+  if (profile.role.kode !== "ADMIN" && profile.role.kode !== "PIMPINAN") return 0
+  const sb = await createClient()
+  const { count } = await sb
+    .from("penerimaan")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "draft")
+  return count ?? 0
+}
