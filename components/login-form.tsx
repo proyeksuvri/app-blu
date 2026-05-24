@@ -122,7 +122,7 @@ export function LoginForm() {
                   <Label htmlFor="password">Kata Sandi</Label>
                   <button
                     type="button"
-                    className="text-xs text-muted-foreground transition-colors hover:text-foreground"
+                    className="py-1.5 px-1 -my-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
                   >
                     Lupa kata sandi?
                   </button>
