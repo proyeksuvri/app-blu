@@ -27,12 +27,11 @@ export default async function DashboardPage() {
       {/* Header */}
       <div>
         <h1 className="text-lg font-semibold text-foreground">
-          Selamat datang, {stats.nama}
+          {format(new Date(), "MMMM yyyy", { locale: id })}
         </h1>
         <p className="mt-0.5 text-sm text-muted-foreground">
-          {stats.role === "ADMIN" ? "Administrator"
-            : stats.role === "PIMPINAN" ? "Pimpinan"
-            : `Operator${stats.unitNama ? ` — ${stats.unitNama}` : ""}`}
+          {stats.nama}
+          {stats.role === "OPERATOR" && stats.unitNama ? ` · ${stats.unitNama}` : ""}
         </p>
       </div>
 
