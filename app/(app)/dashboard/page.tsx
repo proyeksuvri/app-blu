@@ -40,7 +40,7 @@ export default async function DashboardPage() {
         <StatCard
           label="Total Verified Bulan Ini"
           value={rupiah(stats.totalBulanIni)}
-          color="green"
+          color={stats.totalBulanIni > 0 ? "green" : "default"}
         />
         <StatCard
           label="Penerimaan Hari Ini (Verified)"
