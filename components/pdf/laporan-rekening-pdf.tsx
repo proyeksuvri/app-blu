@@ -1,5 +1,6 @@
 import { Document, Page, Text, View, StyleSheet, Svg, Rect, G } from "@react-pdf/renderer"
 import type { FC, ReactNode } from "react"
+import "@/components/pdf/register-fonts"
 
 type SvgTxtProps = { x?: number | string; y?: number | string; fill?: string; fontSize?: number; fontFamily?: string; textAnchor?: "start" | "middle" | "end"; children?: ReactNode }
 const SvgText = Text as unknown as FC<SvgTxtProps>
@@ -20,10 +21,10 @@ const C = {
 }
 
 const s = StyleSheet.create({
-  page:        { padding: 40, fontSize: 9, fontFamily: "Helvetica", color: C.text, backgroundColor: C.white },
-  orgName:     { fontSize: 16, fontFamily: "Helvetica-Bold", color: C.brand, marginBottom: 2 },
+  page:        { padding: 40, fontSize: 9, fontFamily: "Geist", color: C.text, backgroundColor: C.white },
+  orgName:     { fontSize: 16, fontFamily: "Geist", fontWeight: 700, color: C.brand, marginBottom: 2 },
   orgSub:      { fontSize: 8, color: C.textMuted },
-  reportTitle: { fontSize: 11, fontFamily: "Helvetica-Bold", color: C.text, marginTop: 8 },
+  reportTitle: { fontSize: 11, fontFamily: "Geist", fontWeight: 700, color: C.text, marginTop: 8 },
   periodRow:   { flexDirection: "row", justifyContent: "space-between", marginTop: 2 },
   periodText:  { fontSize: 8, color: C.textMuted },
   divider:     { borderBottomWidth: 1.5, borderBottomColor: C.brand, marginTop: 12, marginBottom: 16 },
@@ -31,23 +32,23 @@ const s = StyleSheet.create({
   cardsRow:    { flexDirection: "row", gap: 8, marginBottom: 16 },
   card:        { flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: 5, padding: 9, backgroundColor: C.surface },
   cardLabel:   { fontSize: 6.5, color: C.textMuted, marginBottom: 3, textTransform: "uppercase", letterSpacing: 0.4 },
-  cardValue:   { fontSize: 11, fontFamily: "Helvetica-Bold", color: C.brand },
+  cardValue:   { fontSize: 11, fontFamily: "Geist", fontWeight: 700, color: C.brand },
   cardSub:     { fontSize: 6.5, color: C.textMuted, marginTop: 2 },
 
   section:     { marginBottom: 14 },
-  sectionTitle:{ fontSize: 8, fontFamily: "Helvetica-Bold", color: C.brand, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 },
+  sectionTitle:{ fontSize: 8, fontFamily: "Geist", fontWeight: 700, color: C.brand, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 },
 
   tblHeader:   { flexDirection: "row", backgroundColor: C.brand, paddingHorizontal: 10, paddingVertical: 5 },
-  tblHCell:    { color: C.white, fontSize: 7.5, fontFamily: "Helvetica-Bold" },
+  tblHCell:    { color: C.white, fontSize: 7.5, fontFamily: "Geist", fontWeight: 700 },
   tblRow:      { flexDirection: "row", paddingHorizontal: 10, paddingVertical: 4, borderBottomWidth: 0.5, borderBottomColor: C.border },
   tblRowAlt:   { backgroundColor: C.rowAlt },
   tblCell:     { fontSize: 8, color: C.text },
   tblMuted:    { fontSize: 8, color: C.textMuted },
-  tblBold:     { fontFamily: "Helvetica-Bold" },
+  tblBold:     { fontFamily: "Geist", fontWeight: 700 },
 
   totalRow:    { flexDirection: "row", backgroundColor: C.brand, paddingHorizontal: 10, paddingVertical: 6, marginTop: 1, borderRadius: 3 },
-  totalLabel:  { flex: 1, fontSize: 8, fontFamily: "Helvetica-Bold", color: C.white },
-  totalValue:  { fontSize: 8, fontFamily: "Helvetica-Bold", color: C.white, textAlign: "right" },
+  totalLabel:  { flex: 1, fontSize: 8, fontFamily: "Geist", fontWeight: 700, color: C.white },
+  totalValue:  { fontSize: 8, fontFamily: "Geist", fontWeight: 700, color: C.white, textAlign: "right" },
 
   footer:      { position: "absolute", bottom: 22, left: 40, right: 40, flexDirection: "row", justifyContent: "space-between", color: C.textMuted, fontSize: 7, borderTopWidth: 0.5, borderTopColor: C.border, paddingTop: 3 },
 })
@@ -81,7 +82,7 @@ function RekeningBarChart({ data, total }: { data: Array<RekeningRow & { pct: nu
         const color = C.chart[i % C.chart.length]
         return (
           <G key={r.kode}>
-            <SvgText x={0} y={y + BAR_H - 3} fontSize={7} fill={C.text} fontFamily="Helvetica">{r.nama_bank}</SvgText>
+            <SvgText x={0} y={y + BAR_H - 3} fontSize={7} fill={C.text} fontFamily="Geist">{r.nama_bank}</SvgText>
             <Rect x={LABEL_W} y={y} width={BAR_AREA} height={BAR_H} rx={3} fill={C.border} />
             <Rect x={LABEL_W} y={y} width={barW} height={BAR_H} rx={3} fill={color} />
             {barW > 32 && (
