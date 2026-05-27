@@ -150,7 +150,7 @@ export function LoginForm() {
             </CardContent>
 
             <CardFooter className="flex-col gap-3">
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button type="submit" className="w-full h-10" disabled={isLoading}>
                 {isLoading ? "Memproses..." : "Masuk"}
               </Button>
               <p className="text-center text-xs text-muted-foreground">
