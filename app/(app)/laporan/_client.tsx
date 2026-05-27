@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { Download, Printer } from "lucide-react"
+import { Download, FileText } from "lucide-react"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
 import { Button } from "@/components/ui/button"
@@ -11,8 +11,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { PenerimaanStatusBadge } from "@/components/penerimaan-status-badge"
 import { EmptyState } from "@/components/empty-state"
-import { rekapHarian, rekapBulanan, rekapPerRekening } from "@/app/actions/laporan"
+import { rekapHarian, rekapBulanan, rekapPerRekening, rekapBulananFull } from "@/app/actions/laporan"
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious, PaginationEllipsis } from "@/components/ui/pagination"
+
+const HARIAN_PAGE_SIZE = 20
+
+function buildPages(current: number, total: number): (number | "…")[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
+  const pages: (number | "…")[] = [1]
+  if (current > 3) pages.push("…")
+  for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) pages.push(i)
+  if (current < total - 2) pages.push("…")
+  pages.push(total)
+  return pages
+}
 
 const rupiah = (n: number) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n)
@@ -35,11 +48,15 @@ type Props = {
 
 export function LaporanClient({ initialHarian, initialBulanan, initialRekening }: Props) {
   const [pending, startTransition] = useTransition()
+  const [pdfLoadingBulanan, setPdfLoadingBulanan] = useState(false)
+  const [pdfLoadingHarian, setPdfLoadingHarian] = useState(false)
+  const [pdfLoadingRekening, setPdfLoadingRekening] = useState(false)
 
   // Harian state
   const [tanggal, setTanggal] = useState(initialHarian.tanggal)
   const [harianRows, setHarianRows] = useState(initialHarian.rows)
   const [harianTotal, setHarianTotal] = useState(initialHarian.total)
+  const [harianPage, setHarianPage] = useState(1)
 
   // Bulanan state
   const [tahun, setTahun] = useState(initialBulanan.tahun)
@@ -57,6 +74,7 @@ export function LaporanClient({ initialHarian, initialBulanan, initialRekening }
 
   function fetchHarian(tgl: string) {
     setTanggal(tgl)
+    setHarianPage(1)
     startTransition(async () => {
       const data = await rekapHarian(tgl)
       setHarianRows(data.rows)
@@ -80,6 +98,58 @@ export function LaporanClient({ initialHarian, initialBulanan, initialRekening }
       setByRekening(data.byRekening)
       setRekeningTotal(data.total)
     })
+  }
+
+  async function exportHarianPDF() {
+    setPdfLoadingHarian(true)
+    try {
+      const { pdf } = await import("@react-pdf/renderer")
+      const { LaporanHarianPDF } = await import("@/components/pdf/laporan-harian-pdf")
+      const blob = await pdf(<LaporanHarianPDF tanggal={tanggal} rows={harianRows} total={harianTotal} />).toBlob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `laporan-harian-${tanggal}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } finally {
+      setPdfLoadingHarian(false)
+    }
+  }
+
+  async function exportBulananPDF() {
+    setPdfLoadingBulanan(true)
+    try {
+      const fullData = await rekapBulananFull(tahun, bulan)
+      const { pdf } = await import("@react-pdf/renderer")
+      const { LaporanBulananPDF } = await import("@/components/pdf/laporan-bulanan-pdf")
+      const blob = await pdf(<LaporanBulananPDF data={fullData} />).toBlob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `laporan-bulanan-${tahun}-${String(bulan).padStart(2, "0")}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } finally {
+      setPdfLoadingBulanan(false)
+    }
+  }
+
+  async function exportRekeningPDF() {
+    setPdfLoadingRekening(true)
+    try {
+      const { pdf } = await import("@react-pdf/renderer")
+      const { LaporanRekeningPDF } = await import("@/components/pdf/laporan-rekening-pdf")
+      const blob = await pdf(<LaporanRekeningPDF tglAwal={tglAwal} tglAkhir={tglAkhir} byRekening={byRekening} total={rekeningTotal} />).toBlob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `rekap-rekening-${tglAwal}-sd-${tglAkhir}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } finally {
+      setPdfLoadingRekening(false)
+    }
   }
 
   async function exportHarian() {
@@ -140,49 +210,81 @@ export function LaporanClient({ initialHarian, initialBulanan, initialRekening }
               <Button variant="ghost" size="sm" onClick={exportHarian} className="gap-1.5 text-foreground/50 hover:text-foreground">
                 <Download className="h-4 w-4" />Excel
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => window.print()} className="gap-1.5 text-foreground/50 hover:text-foreground">
-                <Printer className="h-4 w-4" />PDF
+              <Button variant="ghost" size="sm" onClick={exportHarianPDF} disabled={pdfLoadingHarian} className="gap-1.5 text-foreground/50 hover:text-foreground">
+                <FileText className="h-4 w-4" />{pdfLoadingHarian ? "..." : "PDF"}
               </Button>
             </div>
           </div>
 
           {harianRows.length === 0 ? (
             <EmptyState message={`Tidak ada penerimaan pada ${tglLabel}`} />
-          ) : (
-            <div className="rounded-xl border border-border overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-border hover:bg-transparent">
-                    <TableHead className="text-muted-foreground text-xs">No. Bukti</TableHead>
-                    <TableHead className="text-muted-foreground text-xs">Jenis</TableHead>
-                    <TableHead className="text-muted-foreground text-xs">Unit</TableHead>
-                    <TableHead className="text-muted-foreground text-xs">Metode</TableHead>
-                    <TableHead className="text-muted-foreground text-xs text-right">Jumlah</TableHead>
-                    <TableHead className="text-muted-foreground text-xs">Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {harianRows.map((r) => (
-                    <TableRow key={r.nomor_bukti} className="border-border/50">
-                      <TableCell className="text-xs font-mono text-foreground/70 py-2">{r.nomor_bukti}</TableCell>
-                      <TableCell className="text-xs text-foreground/70 py-2">{r.jenis?.nama ?? "—"}</TableCell>
-                      <TableCell className="text-xs text-foreground/50 py-2">{r.unit?.kode ?? "—"}</TableCell>
-                      <TableCell className="text-xs text-foreground/50 py-2">{r.metode?.nama ?? "—"}</TableCell>
-                      <TableCell className="text-xs text-foreground/80 py-2 text-right font-medium">{rupiah(r.jumlah)}</TableCell>
-                      <TableCell className="text-xs py-2">
-                        <PenerimaanStatusBadge status={r.status as "draft" | "verified" | "void"} />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  <TableRow className="border-t-2 border-border font-semibold">
-                    <TableCell colSpan={4} className="text-xs text-foreground/60 py-2">TOTAL</TableCell>
-                    <TableCell className="text-sm text-foreground font-bold py-2 text-right">{rupiah(harianTotal)}</TableCell>
-                    <TableCell />
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </div>
-          )}
+          ) : (() => {
+            const harianTotalPages = Math.ceil(harianRows.length / HARIAN_PAGE_SIZE)
+            const pagedRows = harianRows.slice((harianPage - 1) * HARIAN_PAGE_SIZE, harianPage * HARIAN_PAGE_SIZE)
+            return (
+              <div className="flex flex-col gap-2">
+                <div className="rounded-xl border border-border overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-border hover:bg-transparent">
+                        <TableHead className="text-muted-foreground text-xs">No. Bukti</TableHead>
+                        <TableHead className="text-muted-foreground text-xs">Jenis</TableHead>
+                        <TableHead className="text-muted-foreground text-xs">Unit</TableHead>
+                        <TableHead className="text-muted-foreground text-xs">Metode</TableHead>
+                        <TableHead className="text-muted-foreground text-xs text-right">Jumlah</TableHead>
+                        <TableHead className="text-muted-foreground text-xs">Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {pagedRows.map((r) => (
+                        <TableRow key={r.nomor_bukti} className="border-border/50">
+                          <TableCell className="text-xs font-mono text-foreground/70 py-2">{r.nomor_bukti}</TableCell>
+                          <TableCell className="text-xs text-foreground/70 py-2">{r.jenis?.nama ?? "—"}</TableCell>
+                          <TableCell className="text-xs text-foreground/50 py-2">{r.unit?.kode ?? "—"}</TableCell>
+                          <TableCell className="text-xs text-foreground/50 py-2">{r.metode?.nama ?? "—"}</TableCell>
+                          <TableCell className="text-xs text-foreground/80 py-2 text-right font-medium">{rupiah(r.jumlah)}</TableCell>
+                          <TableCell className="text-xs py-2">
+                            <PenerimaanStatusBadge status={r.status as "draft" | "verified" | "void"} />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      <TableRow className="border-t-2 border-border font-semibold">
+                        <TableCell colSpan={4} className="text-xs text-foreground/60 py-2">TOTAL</TableCell>
+                        <TableCell className="text-sm text-foreground font-bold py-2 text-right">{rupiah(harianTotal)}</TableCell>
+                        <TableCell />
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+                {harianTotalPages > 1 && (
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{harianRows.length} transaksi · halaman {harianPage} dari {harianTotalPages}</span>
+                    <Pagination className="w-auto mx-0">
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationPrevious href="#" onClick={(e) => { e.preventDefault(); setHarianPage((p) => Math.max(1, p - 1)) }}
+                            aria-disabled={harianPage === 1} className={harianPage === 1 ? "pointer-events-none opacity-40" : ""} text="Sebelumnya" />
+                        </PaginationItem>
+                        {buildPages(harianPage, harianTotalPages).map((p, i) =>
+                          p === "…" ? (
+                            <PaginationItem key={`e${i}`}><PaginationEllipsis /></PaginationItem>
+                          ) : (
+                            <PaginationItem key={p}>
+                              <PaginationLink href="#" isActive={p === harianPage} onClick={(e) => { e.preventDefault(); setHarianPage(p) }}>{p}</PaginationLink>
+                            </PaginationItem>
+                          )
+                        )}
+                        <PaginationItem>
+                          <PaginationNext href="#" onClick={(e) => { e.preventDefault(); setHarianPage((p) => Math.min(harianTotalPages, p + 1)) }}
+                            aria-disabled={harianPage === harianTotalPages} className={harianPage === harianTotalPages ? "pointer-events-none opacity-40" : ""} text="Berikutnya" />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
         </div>
       </TabsContent>
 
@@ -212,8 +314,8 @@ export function LaporanClient({ initialHarian, initialBulanan, initialRekening }
               <Button variant="ghost" size="sm" onClick={exportBulanan} className="gap-1.5 text-foreground/50 hover:text-foreground">
                 <Download className="h-4 w-4" />Excel
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => window.print()} className="gap-1.5 text-foreground/50 hover:text-foreground">
-                <Printer className="h-4 w-4" />PDF
+              <Button variant="ghost" size="sm" onClick={exportBulananPDF} disabled={pdfLoadingBulanan} className="gap-1.5 text-foreground/50 hover:text-foreground">
+                <FileText className="h-4 w-4" />{pdfLoadingBulanan ? "..." : "PDF"}
               </Button>
             </div>
           </div>
@@ -267,8 +369,8 @@ export function LaporanClient({ initialHarian, initialBulanan, initialRekening }
               <Button variant="ghost" size="sm" onClick={exportRekening} className="gap-1.5 text-foreground/50 hover:text-foreground">
                 <Download className="h-4 w-4" />Excel
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => window.print()} className="gap-1.5 text-foreground/50 hover:text-foreground">
-                <Printer className="h-4 w-4" />PDF
+              <Button variant="ghost" size="sm" onClick={exportRekeningPDF} disabled={pdfLoadingRekening} className="gap-1.5 text-foreground/50 hover:text-foreground">
+                <FileText className="h-4 w-4" />{pdfLoadingRekening ? "..." : "PDF"}
               </Button>
             </div>
           </div>

@@ -16,6 +16,19 @@ import { StatusBadge } from "@/components/status-badge"
 import { EmptyState } from "@/components/empty-state"
 import { toast } from "sonner"
 import { inviteUser, updatePengguna, resetPassword } from "@/app/actions/pengguna"
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious, PaginationEllipsis } from "@/components/ui/pagination"
+
+const PAGE_SIZE = 10
+
+function buildPages(current: number, total: number): (number | "…")[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
+  const pages: (number | "…")[] = [1]
+  if (current > 3) pages.push("…")
+  for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) pages.push(i)
+  if (current < total - 2) pages.push("…")
+  pages.push(total)
+  return pages
+}
 
 type Role = { id: string; kode: string; nama: string }
 type Unit = { id: string; kode: string; nama: string }
@@ -237,6 +250,9 @@ type ModalState =
 
 export function PenggunaTable({ data, roles, unitKerja }: { data: Pengguna[]; roles: Role[]; unitKerja: Unit[] }) {
   const [modal, setModal] = useState<ModalState>(null)
+  const [page, setPage] = useState(1)
+  const totalPages = Math.ceil(data.length / PAGE_SIZE)
+  const paged = data.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   return (
     <div className="flex flex-col gap-4">
@@ -263,7 +279,7 @@ export function PenggunaTable({ data, roles, unitKerja }: { data: Pengguna[]; ro
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.map((row) => (
+              {paged.map((row) => (
                 <TableRow key={row.id} className="border-border/50 hover:bg-muted/20">
                   <TableCell className="text-sm text-foreground/80 py-3 font-medium">{row.nama_lengkap}</TableCell>
                   <TableCell className="text-sm text-foreground/50 py-3">{row.email ?? "—"}</TableCell>
@@ -286,6 +302,33 @@ export function PenggunaTable({ data, roles, unitKerja }: { data: Pengguna[]; ro
               ))}
             </TableBody>
           </Table>
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span>{data.length} pengguna · halaman {page} dari {totalPages}</span>
+          <Pagination className="w-auto mx-0">
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious href="#" onClick={(e) => { e.preventDefault(); setPage((p) => Math.max(1, p - 1)) }}
+                  aria-disabled={page === 1} className={page === 1 ? "pointer-events-none opacity-40" : ""} text="Sebelumnya" />
+              </PaginationItem>
+              {buildPages(page, totalPages).map((p, i) =>
+                p === "…" ? (
+                  <PaginationItem key={`e${i}`}><PaginationEllipsis /></PaginationItem>
+                ) : (
+                  <PaginationItem key={p}>
+                    <PaginationLink href="#" isActive={p === page} onClick={(e) => { e.preventDefault(); setPage(p) }}>{p}</PaginationLink>
+                  </PaginationItem>
+                )
+              )}
+              <PaginationItem>
+                <PaginationNext href="#" onClick={(e) => { e.preventDefault(); setPage((p) => Math.min(totalPages, p + 1)) }}
+                  aria-disabled={page === totalPages} className={page === totalPages ? "pointer-events-none opacity-40" : ""} text="Berikutnya" />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
         </div>
       )}
 

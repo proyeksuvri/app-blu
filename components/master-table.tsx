@@ -9,6 +9,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { StatusBadge } from "@/components/status-badge"
 import { EmptyState } from "@/components/empty-state"
 import { toast } from "sonner"
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious, PaginationEllipsis } from "@/components/ui/pagination"
+
+const PAGE_SIZE = 10
+
+function buildPages(current: number, total: number): (number | "…")[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
+  const pages: (number | "…")[] = [1]
+  if (current > 3) pages.push("…")
+  for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) pages.push(i)
+  if (current < total - 2) pages.push("…")
+  pages.push(total)
+  return pages
+}
 
 export type MasterRow = {
   id: string
@@ -39,6 +52,10 @@ export function MasterTable<T extends MasterRow>({
   const [open, setOpen] = useState(false)
   const [selected, setSelected] = useState<T | null>(null)
   const [pending, startTransition] = useTransition()
+  const [page, setPage] = useState(1)
+
+  const totalPages = Math.ceil(data.length / PAGE_SIZE)
+  const paged = data.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   function openCreate() { setSelected(null); setOpen(true) }
   function openEdit(row: T) { setSelected(row); setOpen(true) }
@@ -78,7 +95,7 @@ export function MasterTable<T extends MasterRow>({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.map((row) => (
+                {paged.map((row) => (
                   <TableRow key={row.id} className="border-border/50 hover:bg-muted/20">
                     {columns.map((col) => (
                       <TableCell key={String(col.key)} className="text-sm text-foreground/70 py-3">
@@ -120,6 +137,49 @@ export function MasterTable<T extends MasterRow>({
             </Table>
           </CardContent>
         </Card>
+      )}
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span>{data.length} data · halaman {page} dari {totalPages}</span>
+          <Pagination className="w-auto mx-0">
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  href="#"
+                  onClick={(e) => { e.preventDefault(); setPage((p) => Math.max(1, p - 1)) }}
+                  aria-disabled={page === 1}
+                  className={page === 1 ? "pointer-events-none opacity-40" : ""}
+                  text="Sebelumnya"
+                />
+              </PaginationItem>
+              {buildPages(page, totalPages).map((p, i) =>
+                p === "…" ? (
+                  <PaginationItem key={`e${i}`}><PaginationEllipsis /></PaginationItem>
+                ) : (
+                  <PaginationItem key={p}>
+                    <PaginationLink
+                      href="#"
+                      isActive={p === page}
+                      onClick={(e) => { e.preventDefault(); setPage(p) }}
+                    >
+                      {p}
+                    </PaginationLink>
+                  </PaginationItem>
+                )
+              )}
+              <PaginationItem>
+                <PaginationNext
+                  href="#"
+                  onClick={(e) => { e.preventDefault(); setPage((p) => Math.min(totalPages, p + 1)) }}
+                  aria-disabled={page === totalPages}
+                  className={page === totalPages ? "pointer-events-none opacity-40" : ""}
+                  text="Berikutnya"
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>

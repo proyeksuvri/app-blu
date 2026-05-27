@@ -30,11 +30,11 @@ export function LaporanBulananClient({ tahun, bulan, byKategori, total }: {
   async function exportPDF() {
     setPdfLoading(true)
     try {
+      const { rekapBulananFull } = await import("@/app/actions/laporan")
+      const fullData = await rekapBulananFull(tahun, bulan)
       const { pdf } = await import("@react-pdf/renderer")
       const { LaporanBulananPDF } = await import("@/components/pdf/laporan-bulanan-pdf")
-      const blob = await pdf(
-        <LaporanBulananPDF tahun={tahun} bulan={bulan} byKategori={byKategori} total={total} />
-      ).toBlob()
+      const blob = await pdf(<LaporanBulananPDF data={fullData} />).toBlob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = url
