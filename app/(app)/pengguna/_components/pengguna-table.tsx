@@ -241,7 +241,7 @@ export function PenggunaTable({ data, roles, unitKerja }: { data: Pengguna[]; ro
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-end">
-        <Button size="sm" onClick={() => setModal({ type: "invite" })} className="gap-1.5">
+        <Button onClick={() => setModal({ type: "invite" })} className="gap-1.5 h-8">
           <Plus className="h-4 w-4" />
           Tambah Pengguna
         </Button>
@@ -273,11 +273,11 @@ export function PenggunaTable({ data, roles, unitKerja }: { data: Pengguna[]; ro
                   <TableCell className="py-3">
                     <div className="flex justify-end gap-1">
                       <Button variant="ghost" size="sm" onClick={() => setModal({ type: "edit", row })}
-                        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground">
+                        className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground">
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
                       <Button variant="ghost" size="sm" onClick={() => setModal({ type: "reset_pw", row })}
-                        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground">
+                        className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground">
                         <KeyRound className="h-3.5 w-3.5" />
                       </Button>
                     </div>
