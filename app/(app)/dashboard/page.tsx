@@ -83,7 +83,7 @@ export default async function DashboardPage() {
         <CardHeader className="border-b px-5 py-3.5">
           <CardTitle className="text-sm font-medium text-foreground/60">Transaksi Terbaru</CardTitle>
           <CardAction>
-            <Link href="/penerimaan" className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground/70 transition-colors">
+            <Link href="/penerimaan" className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground/70 transition-colors py-1.5 -my-1.5 px-1 -mx-1">
               Lihat semua <ArrowRight className="h-3 w-3" />
             </Link>
           </CardAction>
