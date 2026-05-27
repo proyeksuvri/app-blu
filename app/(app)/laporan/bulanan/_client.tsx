@@ -1,7 +1,8 @@
 "use client"
 
+import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Download, Printer } from "lucide-react"
+import { Download, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { EmptyState } from "@/components/empty-state"
@@ -19,10 +20,30 @@ export function LaporanBulananClient({ tahun, bulan, byKategori, total }: {
   byKategori: KategoriGroup[]; total: number
 }) {
   const router = useRouter()
+  const [pdfLoading, setPdfLoading] = useState(false)
   const tahunList = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i)
 
   function navigate(t: number, b: number) {
     router.push(`/laporan/bulanan?tahun=${t}&bulan=${b}`)
+  }
+
+  async function exportPDF() {
+    setPdfLoading(true)
+    try {
+      const { pdf } = await import("@react-pdf/renderer")
+      const { LaporanBulananPDF } = await import("@/components/pdf/laporan-bulanan-pdf")
+      const blob = await pdf(
+        <LaporanBulananPDF tahun={tahun} bulan={bulan} byKategori={byKategori} total={total} />
+      ).toBlob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `laporan-bulanan-${tahun}-${String(bulan).padStart(2, "0")}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } finally {
+      setPdfLoading(false)
+    }
   }
 
   async function exportExcel() {
@@ -66,8 +87,8 @@ export function LaporanBulananClient({ tahun, bulan, byKategori, total }: {
           <Button variant="ghost" size="sm" onClick={exportExcel} className="gap-1.5 text-foreground/50 hover:text-foreground">
             <Download className="h-4 w-4" />Excel
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => window.print()} className="gap-1.5 text-foreground/50 hover:text-foreground">
-            <Printer className="h-4 w-4" />PDF
+          <Button variant="ghost" size="sm" onClick={exportPDF} disabled={pdfLoading} className="gap-1.5 text-foreground/50 hover:text-foreground">
+            <FileText className="h-4 w-4" />{pdfLoading ? "..." : "PDF"}
           </Button>
         </div>
       </div>
