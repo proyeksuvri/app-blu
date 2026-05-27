@@ -105,7 +105,7 @@ export function LoginForm() {
                 </div>
               )}
 
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
@@ -114,10 +114,11 @@ export function LoginForm() {
                   autoComplete="email"
                   placeholder="nama@uinpalopo.ac.id"
                   required
+                  className="h-10 text-sm"
                 />
               </div>
 
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">Kata Sandi</Label>
                   <button
@@ -135,7 +136,7 @@ export function LoginForm() {
                     autoComplete="current-password"
                     placeholder="••••••••"
                     required
-                    className="pr-10"
+                    className="h-10 text-sm pr-10"
                   />
                   <button
                     type="button"
@@ -149,8 +150,8 @@ export function LoginForm() {
               </div>
             </CardContent>
 
-            <CardFooter className="flex-col gap-3">
-              <Button type="submit" className="w-full h-10" disabled={isLoading}>
+            <CardFooter className="flex-col gap-3 pt-2">
+              <Button type="submit" className="w-full h-10 text-sm font-semibold" disabled={isLoading}>
                 {isLoading ? "Memproses..." : "Masuk"}
               </Button>
               <p className="text-center text-xs text-muted-foreground">
