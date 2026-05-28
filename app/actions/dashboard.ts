@@ -4,13 +4,39 @@ import { createClient } from "@/lib/supabase/server"
 import { getCurrentProfile } from "@/lib/session"
 import { redis } from "@/lib/redis"
 
-export async function getDashboardStats() {
+export type DashboardStats = {
+  totalBulanIni: number
+  draftCount: number
+  hariIni: {
+    count: number
+    total: number
+    verifiedTotal: number
+    verifiedCount: number
+    draftTotal: number
+    draftCount: number
+  }
+  chartData: { tgl: string; label: string; verified: number; draft: number }[]
+  monthlyData: { key: string; label: string; total: number }[]
+  terbaru: {
+    id: string
+    nomor_bukti: string
+    tanggal_terima: string
+    jumlah: number
+    status: string
+    jenis: { nama?: string } | null
+    unit: { kode?: string } | null
+  }[]
+  role: string
+  nama: string
+  unitNama: string | null
+}
+
+export async function getDashboardStats(): Promise<DashboardStats | null> {
   const profile = await getCurrentProfile()
   if (!profile) return null
 
   const cacheKey = `dashboard:stats:${profile.role.kode}:${profile.unit_kerja_id ?? "all"}`
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const cached = await redis.get<any>(cacheKey)
+  const cached = await redis.get<DashboardStats>(cacheKey)
   if (cached != null) return cached
 
   const sb = await createClient()
