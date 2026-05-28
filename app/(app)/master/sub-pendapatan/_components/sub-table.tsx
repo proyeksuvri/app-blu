@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useTransition } from "react"
+import { useTransition } from "react"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -13,7 +13,6 @@ import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@
 import { StatusBadge } from "@/components/status-badge"
 import { toast } from "sonner"
 import { createSub, updateSub, toggleSubAktif } from "@/app/actions/master"
-import { createClient } from "@/lib/supabase/client"
 
 const schema = z.object({
   jenis_pendapatan_id: z.string().uuid(),
@@ -33,9 +32,8 @@ type Row = MasterRow & {
   jenis: { nama: string } | null
 }
 
-function SubForm({ row, onDone }: { row: Row | null; onDone: () => void }) {
+function SubForm({ row, onDone, jenisOptions }: { row: Row | null; onDone: () => void; jenisOptions: JenisOption[] }) {
   const [pending, startTransition] = useTransition()
-  const [jenisOptions, setJenisOptions] = useState<JenisOption[]>([])
 
   const { register, control, handleSubmit, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -46,13 +44,6 @@ function SubForm({ row, onDone }: { row: Row | null; onDone: () => void }) {
       keterangan: row?.keterangan ?? "",
     },
   })
-
-  useEffect(() => {
-    const sb = createClient()
-    sb.from("jenis_pendapatan").select("id, nama").order("kode").then(({ data }) => {
-      if (data) setJenisOptions(data)
-    })
-  }, [])
 
   function onSubmit(values: FormValues) {
     startTransition(async () => {
@@ -108,7 +99,7 @@ function SubForm({ row, onDone }: { row: Row | null; onDone: () => void }) {
   )
 }
 
-export function SubTable({ data }: { data: Row[] }) {
+export function SubTable({ data, jenisOptions }: { data: Row[]; jenisOptions: JenisOption[] }) {
   return (
     <MasterTable
       data={data}
@@ -119,7 +110,7 @@ export function SubTable({ data }: { data: Row[] }) {
         { key: "jenis", label: "Jenis", render: (row) => row.jenis?.nama ?? "-" },
         { key: "is_active", label: "Status", render: (row) => <StatusBadge aktif={row.is_active} /> },
       ]}
-      form={(row, onDone) => <SubForm row={row as Row | null} onDone={onDone} />}
+      form={(row, onDone) => <SubForm row={row as Row | null} onDone={onDone} jenisOptions={jenisOptions} />}
       onToggleAktif={toggleSubAktif}
     />
   )

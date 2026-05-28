@@ -1,11 +1,11 @@
 import { requireRole } from "@/lib/session"
-import { listSub } from "@/app/actions/master"
+import { listSub, listJenis } from "@/app/actions/master"
 import { PageHeader } from "@/components/page-header"
 import { SubTable } from "./_components/sub-table"
 
 export default async function SubPendapatanPage() {
   await requireRole(["ADMIN"])
-  const data = await listSub()
+  const [data, jenisOptions] = await Promise.all([listSub(), listJenis()])
 
   return (
     <div className="flex flex-col gap-6">
@@ -13,7 +13,7 @@ export default async function SubPendapatanPage() {
         title="Sub Pendapatan"
         description="Kelola sub sumber penerimaan BLU"
       />
-      <SubTable data={data} />
+      <SubTable data={data} jenisOptions={jenisOptions} />
     </div>
   )
 }
