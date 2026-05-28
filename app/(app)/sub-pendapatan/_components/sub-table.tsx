@@ -66,7 +66,11 @@ function SubForm({ row, onDone, jenisOptions }: { row: Row | null; onDone: () =>
           render={({ field }) => (
             <Select value={field.value} onValueChange={field.onChange}>
               <SelectTrigger className="bg-muted/50 border-border text-foreground">
-                <SelectValue placeholder="Pilih jenis" />
+                <SelectValue placeholder="Pilih jenis">
+                  {field.value
+                    ? (jenisOptions.find(j => j.id === field.value)?.nama ?? field.value)
+                    : undefined}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {jenisOptions.map((j) => (

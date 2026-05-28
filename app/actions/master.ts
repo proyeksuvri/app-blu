@@ -29,7 +29,7 @@ export async function createKategori(input: { kode: string; nama: string; ketera
     keterangan: input.keterangan || null,
   })
   if (error) return { ok: false, pesan: error.message }
-  revalidatePath("/master/kategori-pendapatan")
+  revalidatePath("/kategori-pendapatan")
   return { ok: true, data: undefined }
 }
 
@@ -42,7 +42,7 @@ export async function updateKategori(id: string, input: { kode: string; nama: st
     keterangan: input.keterangan || null,
   }).eq("id", id)
   if (error) return { ok: false, pesan: error.message }
-  revalidatePath("/master/kategori-pendapatan")
+  revalidatePath("/kategori-pendapatan")
   return { ok: true, data: undefined }
 }
 
@@ -51,7 +51,7 @@ export async function toggleKategoriAktif(id: string, is_active: boolean): Promi
   const sb = await createClient()
   const { error } = await sb.from("kategori_pendapatan").update({ is_active }).eq("id", id)
   if (error) return { ok: false, pesan: error.message }
-  revalidatePath("/master/kategori-pendapatan")
+  revalidatePath("/kategori-pendapatan")
   return { ok: true, data: undefined }
 }
 
@@ -80,7 +80,7 @@ export async function createJenis(input: {
     keterangan: input.keterangan || null,
   })
   if (error) return { ok: false, pesan: error.message }
-  revalidatePath("/master/jenis-pendapatan")
+  revalidatePath("/jenis-pendapatan")
   return { ok: true, data: undefined }
 }
 
@@ -98,7 +98,7 @@ export async function updateJenis(id: string, input: {
     keterangan: input.keterangan || null,
   }).eq("id", id)
   if (error) return { ok: false, pesan: error.message }
-  revalidatePath("/master/jenis-pendapatan")
+  revalidatePath("/jenis-pendapatan")
   return { ok: true, data: undefined }
 }
 
@@ -107,7 +107,7 @@ export async function toggleJenisAktif(id: string, is_active: boolean): Promise<
   const sb = await createClient()
   const { error } = await sb.from("jenis_pendapatan").update({ is_active }).eq("id", id)
   if (error) return { ok: false, pesan: error.message }
-  revalidatePath("/master/jenis-pendapatan")
+  revalidatePath("/jenis-pendapatan")
   return { ok: true, data: undefined }
 }
 
@@ -134,7 +134,7 @@ export async function createSub(input: {
     keterangan: input.keterangan || null,
   })
   if (error) return { ok: false, pesan: error.message }
-  revalidatePath("/master/sub-pendapatan")
+  revalidatePath("/sub-pendapatan")
   return { ok: true, data: undefined }
 }
 
@@ -150,7 +150,7 @@ export async function updateSub(id: string, input: {
     keterangan: input.keterangan || null,
   }).eq("id", id)
   if (error) return { ok: false, pesan: error.message }
-  revalidatePath("/master/sub-pendapatan")
+  revalidatePath("/sub-pendapatan")
   return { ok: true, data: undefined }
 }
 
@@ -159,7 +159,7 @@ export async function toggleSubAktif(id: string, is_active: boolean): Promise<Ac
   const sb = await createClient()
   const { error } = await sb.from("sub_pendapatan").update({ is_active }).eq("id", id)
   if (error) return { ok: false, pesan: error.message }
-  revalidatePath("/master/sub-pendapatan")
+  revalidatePath("/sub-pendapatan")
   return { ok: true, data: undefined }
 }
 
@@ -179,7 +179,7 @@ export async function createUnitKerja(input: { kode: string; nama: string; keter
     kode: input.kode.toUpperCase(), nama: input.nama, keterangan: input.keterangan || null,
   })
   if (error) return { ok: false, pesan: error.message }
-  revalidatePath("/master/unit-kerja")
+  revalidatePath("/unit-kerja")
   return { ok: true, data: undefined }
 }
 
@@ -190,7 +190,7 @@ export async function updateUnitKerja(id: string, input: { kode: string; nama: s
     kode: input.kode.toUpperCase(), nama: input.nama, keterangan: input.keterangan || null,
   }).eq("id", id)
   if (error) return { ok: false, pesan: error.message }
-  revalidatePath("/master/unit-kerja")
+  revalidatePath("/unit-kerja")
   return { ok: true, data: undefined }
 }
 
@@ -199,7 +199,7 @@ export async function toggleUnitKerjaAktif(id: string, is_active: boolean): Prom
   const sb = await createClient()
   const { error } = await sb.from("unit_kerja").update({ is_active }).eq("id", id)
   if (error) return { ok: false, pesan: error.message }
-  revalidatePath("/master/unit-kerja")
+  revalidatePath("/unit-kerja")
   return { ok: true, data: undefined }
 }
 
@@ -226,7 +226,7 @@ export async function createRekening(input: {
     keterangan: input.keterangan || null,
   })
   if (error) return { ok: false, pesan: error.message }
-  revalidatePath("/master/rekening-bank")
+  revalidatePath("/rekening-bank")
   return { ok: true, data: undefined }
 }
 
@@ -244,7 +244,7 @@ export async function updateRekening(id: string, input: {
     keterangan: input.keterangan || null,
   }).eq("id", id)
   if (error) return { ok: false, pesan: error.message }
-  revalidatePath("/master/rekening-bank")
+  revalidatePath("/rekening-bank")
   return { ok: true, data: undefined }
 }
 
@@ -253,7 +253,7 @@ export async function toggleRekeningAktif(id: string, is_active: boolean): Promi
   const sb = await createClient()
   const { error } = await sb.from("rekening_bank").update({ is_active }).eq("id", id)
   if (error) return { ok: false, pesan: error.message }
-  revalidatePath("/master/rekening-bank")
+  revalidatePath("/rekening-bank")
   return { ok: true, data: undefined }
 }
 
@@ -273,7 +273,7 @@ export async function createJenisPemindahan(input: { kode: string; nama: string;
     kode: input.kode.toUpperCase(), nama: input.nama, keterangan: input.keterangan || null,
   })
   if (error) return { ok: false, pesan: error.message }
-  revalidatePath("/master/jenis-pemindahan-kas")
+  revalidatePath("/jenis-pemindahan-kas")
   return { ok: true, data: undefined }
 }
 
@@ -284,7 +284,7 @@ export async function updateJenisPemindahan(id: string, input: { kode: string; n
     kode: input.kode.toUpperCase(), nama: input.nama, keterangan: input.keterangan || null,
   }).eq("id", id)
   if (error) return { ok: false, pesan: error.message }
-  revalidatePath("/master/jenis-pemindahan-kas")
+  revalidatePath("/jenis-pemindahan-kas")
   return { ok: true, data: undefined }
 }
 
@@ -293,6 +293,6 @@ export async function toggleJenisPemindahanAktif(id: string, is_active: boolean)
   const sb = await createClient()
   const { error } = await sb.from("jenis_pemindahan_kas").update({ is_active }).eq("id", id)
   if (error) return { ok: false, pesan: error.message }
-  revalidatePath("/master/jenis-pemindahan-kas")
+  revalidatePath("/jenis-pemindahan-kas")
   return { ok: true, data: undefined }
 }
