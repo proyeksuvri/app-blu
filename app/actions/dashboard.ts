@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { getCurrentProfile } from "@/lib/session"
-import { redis } from "@/lib/redis"
+import { getRedis } from "@/lib/redis"
 
 export type DashboardStats = {
   totalBulanIni: number
@@ -35,9 +35,12 @@ export async function getDashboardStats(): Promise<DashboardStats | null> {
   const profile = await getCurrentProfile()
   if (!profile) return null
 
+  const redis = getRedis()
   const cacheKey = `dashboard:stats:${profile.role.kode}:${profile.unit_kerja_id ?? "all"}`
-  const cached = await redis.get<DashboardStats>(cacheKey)
-  if (cached != null) return cached
+  if (redis) {
+    const cached = await redis.get<DashboardStats>(cacheKey)
+    if (cached != null) return cached
+  }
 
   const sb = await createClient()
   const now = new Date()
@@ -174,7 +177,7 @@ export async function getDashboardStats(): Promise<DashboardStats | null> {
     unitNama: profile.unit_kerja?.nama ?? null,
   }
 
-  await redis.setex(cacheKey, 300, result)
+  if (redis) await redis.setex(cacheKey, 300, result)
   return result
 }
 
