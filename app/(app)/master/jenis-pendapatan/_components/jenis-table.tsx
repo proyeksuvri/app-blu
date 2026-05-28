@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useTransition } from "react"
+import { useTransition } from "react"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -13,7 +13,6 @@ import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@
 import { StatusBadge } from "@/components/status-badge"
 import { toast } from "sonner"
 import { createJenis, updateJenis, toggleJenisAktif } from "@/app/actions/master"
-import { createClient } from "@/lib/supabase/client"
 
 const schema = z.object({
   kategori_pendapatan_id: z.string().uuid(),
@@ -35,9 +34,8 @@ type Row = MasterRow & {
   kategori: { nama: string } | null
 }
 
-function JenisForm({ row, onDone }: { row: Row | null; onDone: () => void }) {
+function JenisForm({ row, onDone, kategoriOptions }: { row: Row | null; onDone: () => void; kategoriOptions: KategoriOption[] }) {
   const [pending, startTransition] = useTransition()
-  const [kategoriOptions, setKategoriOptions] = useState<KategoriOption[]>([])
 
   const { register, control, handleSubmit, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -49,13 +47,6 @@ function JenisForm({ row, onDone }: { row: Row | null; onDone: () => void }) {
       keterangan: row?.keterangan ?? "",
     },
   })
-
-  useEffect(() => {
-    const sb = createClient()
-    sb.from("kategori_pendapatan").select("id, nama").order("kode").then(({ data }) => {
-      if (data) setKategoriOptions(data)
-    })
-  }, [])
 
   function onSubmit(values: FormValues) {
     startTransition(async () => {
@@ -115,7 +106,7 @@ function JenisForm({ row, onDone }: { row: Row | null; onDone: () => void }) {
   )
 }
 
-export function JenisTable({ data }: { data: Row[] }) {
+export function JenisTable({ data, kategoriOptions }: { data: Row[]; kategoriOptions: KategoriOption[] }) {
   return (
     <MasterTable
       data={data}
@@ -127,7 +118,7 @@ export function JenisTable({ data }: { data: Row[] }) {
         { key: "akun_pendapatan", label: "Akun Pendapatan" },
         { key: "is_active", label: "Status", render: (row) => <StatusBadge aktif={row.is_active} /> },
       ]}
-      form={(row, onDone) => <JenisForm row={row as Row | null} onDone={onDone} />}
+      form={(row, onDone) => <JenisForm row={row as Row | null} onDone={onDone} kategoriOptions={kategoriOptions} />}
       onToggleAktif={toggleJenisAktif}
     />
   )
