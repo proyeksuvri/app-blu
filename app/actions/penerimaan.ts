@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { requireRole, getCurrentProfile } from "@/lib/session"
+import { invalidateDashboardCache } from "@/lib/cache"
 
 type ActionResult<T = void> =
   | { ok: true; data: T }
@@ -117,6 +118,7 @@ export async function createPenerimaan(input: PenerimaanInput): Promise<ActionRe
   })
 
   if (error) return { ok: false, pesan: error.message }
+  await invalidateDashboardCache()
   revalidatePath("/penerimaan")
   return { ok: true, data: undefined }
 }
@@ -142,6 +144,7 @@ export async function updatePenerimaan(id: string, input: PenerimaanInput): Prom
   }).eq("id", id).eq("status", "draft")
 
   if (error) return { ok: false, pesan: error.message }
+  await invalidateDashboardCache()
   revalidatePath("/penerimaan")
   revalidatePath(`/penerimaan/${id}`)
   return { ok: true, data: undefined }
@@ -156,6 +159,7 @@ export async function deletePenerimaan(id: string): Promise<ActionResult> {
   }
   const { error } = await q
   if (error) return { ok: false, pesan: error.message }
+  await invalidateDashboardCache()
   revalidatePath("/penerimaan")
   return { ok: true, data: undefined }
 }
@@ -165,6 +169,7 @@ export async function verifyPenerimaan(id: string): Promise<ActionResult> {
   const sb = await createClient()
   const { error } = await sb.rpc("fn_verify_penerimaan", { p_id: id, p_user: profile.id })
   if (error) return { ok: false, pesan: error.message }
+  await invalidateDashboardCache()
   revalidatePath("/penerimaan")
   revalidatePath(`/penerimaan/${id}`)
   return { ok: true, data: undefined }
@@ -177,6 +182,7 @@ export async function bulkDeletePenerimaan(ids: string[]): Promise<ActionResult<
   const sb = await createClient()
   const { error, count } = await sb.from("penerimaan").delete({ count: "exact" }).in("id", ids)
   if (error) return { ok: false, pesan: error.message }
+  await invalidateDashboardCache()
   revalidatePath("/penerimaan")
   return { ok: true, data: { berhasil: count ?? ids.length, gagal: 0 } }
 }
@@ -191,6 +197,7 @@ export async function bulkVerifyPenerimaan(ids: string[]): Promise<ActionResult<
   )
   const berhasil = results.filter((r) => !r.error).length
   const gagal = results.filter((r) => !!r.error).length
+  await invalidateDashboardCache()
   revalidatePath("/penerimaan")
   return { ok: true, data: { berhasil, gagal } }
 }
@@ -201,6 +208,7 @@ export async function voidPenerimaan(id: string, alasan: string): Promise<Action
   const sb = await createClient()
   const { error } = await sb.rpc("fn_void_penerimaan", { p_id: id, p_user: profile.id, p_alasan: alasan })
   if (error) return { ok: false, pesan: error.message }
+  await invalidateDashboardCache()
   revalidatePath("/penerimaan")
   revalidatePath(`/penerimaan/${id}`)
   return { ok: true, data: undefined }

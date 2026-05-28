@@ -2,10 +2,16 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { getCurrentProfile } from "@/lib/session"
+import { redis } from "@/lib/redis"
 
 export async function getDashboardStats() {
   const profile = await getCurrentProfile()
   if (!profile) return null
+
+  const cacheKey = `dashboard:stats:${profile.role.kode}:${profile.unit_kerja_id ?? "all"}`
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cached = await redis.get<any>(cacheKey)
+  if (cached != null) return cached
 
   const sb = await createClient()
   const now = new Date()
@@ -122,7 +128,7 @@ export async function getDashboardStats() {
     return { key, label, total }
   })
 
-  return {
+  const result = {
     totalBulanIni: bulanRes,
     draftCount: draftRes,
     hariIni: hariIniRes,
@@ -141,6 +147,9 @@ export async function getDashboardStats() {
     nama: profile.nama_lengkap,
     unitNama: profile.unit_kerja?.nama ?? null,
   }
+
+  await redis.setex(cacheKey, 300, result)
+  return result
 }
 
 export async function getDraftCount(roleKode: string): Promise<number> {
