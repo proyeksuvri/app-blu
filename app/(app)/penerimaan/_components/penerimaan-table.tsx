@@ -5,7 +5,7 @@ import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
-import { X, CheckCheck, Trash2, ChevronUpIcon, ChevronDownIcon, ChevronsUpDownIcon } from "lucide-react"
+import { X, CheckCheck, Trash2, ChevronUpIcon, ChevronDownIcon, ChevronsUpDownIcon, Download } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 import { PenerimaanStatusBadge } from "@/components/penerimaan-status-badge"
 import { EmptyState } from "@/components/empty-state"
 import { toast } from "sonner"
-import { bulkVerifyPenerimaan, bulkDeletePenerimaan, verifyAllDraft } from "@/app/actions/penerimaan"
+import { bulkVerifyPenerimaan, bulkDeletePenerimaan, verifyAllDraft, exportPenerimaan } from "@/app/actions/penerimaan"
 
 const rupiah = (n: number) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n)
@@ -56,12 +56,13 @@ function SortHead({ label, col, sort, order }: { label: string; col: SortKey; so
   )
 }
 
-export function PenerimaanTable({ data, isAdmin, sort, order, totalDraft }: {
+export function PenerimaanTable({ data, isAdmin, sort, order, totalDraft, filter }: {
   data: Row[]
   isAdmin: boolean
   sort: SortKey
   order: "asc" | "desc"
   totalDraft?: number
+  filter?: Record<string, string>
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [pending, startTransition] = useTransition()
@@ -105,6 +106,28 @@ export function PenerimaanTable({ data, isAdmin, sort, order, totalDraft }: {
     })
   }
 
+  async function handleDownload() {
+    const statuses = (filter?.status ?? "").split(",").filter(Boolean)
+    const jenisIds = (filter?.jenis_id ?? "").split(",").filter(Boolean)
+    const result = await exportPenerimaan({
+      statuses: statuses.length ? statuses : undefined,
+      jenis_ids: jenisIds.length ? jenisIds : undefined,
+      tgl_awal: filter?.tgl_awal,
+      tgl_akhir: filter?.tgl_akhir,
+      q: filter?.q,
+      sort: sort,
+      order: order,
+    })
+    if (!result.ok) { toast.error(result.pesan); return }
+    const XLSX = await import("xlsx")
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.json_to_sheet(result.rows)
+    ws["!cols"] = [14, 12, 20, 20, 20, 18, 16, 16, 18, 24, 12, 12, 20].map((wch) => ({ wch }))
+    XLSX.utils.book_append_sheet(wb, ws, "Penerimaan")
+    const label = statuses.length === 1 ? `-${statuses[0]}` : ""
+    XLSX.writeFile(wb, `penerimaan${label}-${new Date().toISOString().slice(0, 10)}.xlsx`)
+  }
+
   function handleVerifyAll() {
     if (!confirm(`Verifikasi semua ${totalDraft ?? "?"} draft sekaligus? Tindakan tidak bisa dibatalkan.`)) return
     startTransition(async () => {
@@ -129,8 +152,18 @@ export function PenerimaanTable({ data, isAdmin, sort, order, totalDraft }: {
 
   return (
     <div className="flex flex-col gap-3">
-      {isAdmin && totalDraft != null && totalDraft > 0 && (
-        <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleDownload}
+          disabled={pending}
+          className="gap-1.5 text-muted-foreground hover:text-foreground"
+        >
+          <Download className="h-3.5 w-3.5" />
+          Download Excel
+        </Button>
+        {isAdmin && totalDraft != null && totalDraft > 0 && (
           <Button
             variant="outline"
             size="sm"
@@ -141,8 +174,8 @@ export function PenerimaanTable({ data, isAdmin, sort, order, totalDraft }: {
             <CheckCheck className="h-3.5 w-3.5" />
             {pending ? "Memverifikasi..." : `Verifikasi Semua Draft (${totalDraft})`}
           </Button>
-        </div>
-      )}
+        )}
+      </div>
       <Card className="overflow-hidden p-0">
         <CardContent className="p-0">
         <Table>

@@ -65,7 +65,14 @@ export default async function PenerimaanPage({
       </Suspense>
 
       <Suspense>
-        <PenerimaanTable data={data as Parameters<typeof PenerimaanTable>[0]["data"]} isAdmin={isAdmin} sort={sort} order={order} totalDraft={totalDraft} />
+        <PenerimaanTable
+          data={data as Parameters<typeof PenerimaanTable>[0]["data"]}
+          isAdmin={isAdmin}
+          sort={sort}
+          order={order}
+          totalDraft={totalDraft}
+          filter={{ status: params.status ?? "", jenis_id: params.jenis_id ?? "" }}
+        />
       </Suspense>
 
       <Suspense>
