@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { requireRole } from "@/lib/session"
+import { getRedis } from "@/lib/redis"
 import { revalidatePath } from "next/cache"
 
 export type ImportRow = {
@@ -27,11 +28,25 @@ export type ImportPreviewRow = ImportRow & {
   metode_id?: string
 }
 
-export async function parseImportData(rows: ImportRow[]): Promise<ImportPreviewRow[]> {
-  await requireRole(["OPERATOR", "ADMIN"])
-  const sb = await createClient()
+type MasterMaps = {
+  jenis: Record<string, string>
+  sub: Record<string, string>
+  unit: Record<string, string>
+  rek: Record<string, string>
+  metode: Record<string, string>
+}
 
-  // Load semua master untuk lookup kode → id
+const MASTER_CACHE_KEY = "import:master_maps"
+const MASTER_CACHE_TTL = 3600 // 1 jam
+
+async function getMasterMaps(): Promise<MasterMaps> {
+  const redis = getRedis()
+  if (redis) {
+    const cached = await redis.get<MasterMaps>(MASTER_CACHE_KEY)
+    if (cached) return cached
+  }
+
+  const sb = await createClient()
   const [jenis, sub, unit, rekening, metode] = await Promise.all([
     sb.from("jenis_pendapatan").select("id, kode").eq("is_active", true),
     sb.from("sub_pendapatan").select("id, kode").eq("is_active", true),
@@ -40,11 +55,21 @@ export async function parseImportData(rows: ImportRow[]): Promise<ImportPreviewR
     sb.from("jenis_pemindahan_kas").select("id, kode").eq("is_active", true),
   ])
 
-  const jenisMap = Object.fromEntries((jenis.data ?? []).map((r) => [r.kode, r.id]))
-  const subMap   = Object.fromEntries((sub.data   ?? []).map((r) => [r.kode, r.id]))
-  const unitMap  = Object.fromEntries((unit.data  ?? []).map((r) => [r.kode, r.id]))
-  const rekMap   = Object.fromEntries((rekening.data ?? []).map((r) => [r.kode, r.id]))
-  const metodeMap = Object.fromEntries((metode.data ?? []).map((r) => [r.kode, r.id]))
+  const maps: MasterMaps = {
+    jenis:  Object.fromEntries((jenis.data   ?? []).map((r) => [r.kode, r.id])),
+    sub:    Object.fromEntries((sub.data     ?? []).map((r) => [r.kode, r.id])),
+    unit:   Object.fromEntries((unit.data    ?? []).map((r) => [r.kode, r.id])),
+    rek:    Object.fromEntries((rekening.data ?? []).map((r) => [r.kode, r.id])),
+    metode: Object.fromEntries((metode.data  ?? []).map((r) => [r.kode, r.id])),
+  }
+
+  if (redis) await redis.setex(MASTER_CACHE_KEY, MASTER_CACHE_TTL, maps)
+  return maps
+}
+
+export async function parseImportData(rows: ImportRow[]): Promise<ImportPreviewRow[]> {
+  await requireRole(["OPERATOR", "ADMIN"])
+  const { jenis, sub, unit, rek, metode } = await getMasterMaps()
 
   const ISO_DATE_RE = /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/
 
@@ -58,11 +83,11 @@ export async function parseImportData(rows: ImportRow[]): Promise<ImportPreviewR
       errors.push("jumlah harus angka positif")
     }
 
-    const jenis_id  = jenisMap[row.kode_jenis?.toUpperCase()]
-    const sub_id    = row.kode_sub ? subMap[row.kode_sub.toUpperCase()] : undefined
-    const unit_id   = unitMap[row.kode_unit?.toUpperCase()]
-    const rekening_id = rekMap[row.kode_rekening?.toUpperCase()]
-    const metode_id = metodeMap[row.kode_metode?.toUpperCase()]
+    const jenis_id    = jenis[row.kode_jenis?.toUpperCase()]
+    const sub_id      = row.kode_sub ? sub[row.kode_sub.toUpperCase()] : undefined
+    const unit_id     = unit[row.kode_unit?.toUpperCase()]
+    const rekening_id = rek[row.kode_rekening?.toUpperCase()]
+    const metode_id   = metode[row.kode_metode?.toUpperCase()]
 
     if (!jenis_id)    errors.push(`kode_jenis "${row.kode_jenis}" tidak ditemukan`)
     if (row.kode_sub && !sub_id) errors.push(`kode_sub "${row.kode_sub}" tidak ditemukan`)
@@ -74,6 +99,8 @@ export async function parseImportData(rows: ImportRow[]): Promise<ImportPreviewR
   })
 }
 
+const CHUNK_SIZE = 500
+
 export async function commitImport(rows: ImportPreviewRow[]): Promise<{ ok: boolean; pesan?: string; jumlah?: number }> {
   const profile = await requireRole(["OPERATOR", "ADMIN"])
   const sb = await createClient()
@@ -82,15 +109,15 @@ export async function commitImport(rows: ImportPreviewRow[]): Promise<{ ok: bool
   if (validRows.length === 0) return { ok: false, pesan: "Tidak ada baris valid untuk diimpor" }
   if (validRows.length > 2000) return { ok: false, pesan: "Maksimal 2000 baris per import" }
 
-  // Group baris per tahun, generate nomor bukti batch per tahun
+  // Generate nomor bukti per tahun
   const tahunGroups = new Map<number, number[]>()
-  validRows.forEach((_, i) => {
-    const tahun = new Date(validRows[i].tanggal_terima).getFullYear()
+  validRows.forEach((row, i) => {
+    const tahun = new Date(row.tanggal_terima).getFullYear()
     if (!tahunGroups.has(tahun)) tahunGroups.set(tahun, [])
     tahunGroups.get(tahun)!.push(i)
   })
 
-  const nomorMap = new Map<number, string>() // index → nomor_bukti
+  const nomorMap = new Map<number, string>()
   for (const [tahun, indices] of tahunGroups) {
     const { data: nomorList, error: nomorError } = await sb.rpc("fn_generate_nomor_bukti_batch", {
       p_tahun: tahun,
@@ -116,8 +143,12 @@ export async function commitImport(rows: ImportPreviewRow[]): Promise<{ ok: bool
     updated_by: profile.id,
   }))
 
-  const { error } = await sb.from("penerimaan").insert(inserts)
-  if (error) return { ok: false, pesan: error.message }
+  // Insert dalam chunk agar tidak melebihi batas payload Supabase
+  for (let i = 0; i < inserts.length; i += CHUNK_SIZE) {
+    const chunk = inserts.slice(i, i + CHUNK_SIZE)
+    const { error } = await sb.from("penerimaan").insert(chunk)
+    if (error) return { ok: false, pesan: error.message }
+  }
 
   revalidatePath("/penerimaan")
   return { ok: true, jumlah: inserts.length }
