@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 import { PenerimaanStatusBadge } from "@/components/penerimaan-status-badge"
 import { EmptyState } from "@/components/empty-state"
 import { toast } from "sonner"
-import { bulkVerifyPenerimaan, bulkDeletePenerimaan } from "@/app/actions/penerimaan"
+import { bulkVerifyPenerimaan, bulkDeletePenerimaan, verifyAllDraft } from "@/app/actions/penerimaan"
 
 const rupiah = (n: number) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n)
@@ -56,11 +56,12 @@ function SortHead({ label, col, sort, order }: { label: string; col: SortKey; so
   )
 }
 
-export function PenerimaanTable({ data, isAdmin, sort, order }: {
+export function PenerimaanTable({ data, isAdmin, sort, order, totalDraft }: {
   data: Row[]
   isAdmin: boolean
   sort: SortKey
   order: "asc" | "desc"
+  totalDraft?: number
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [pending, startTransition] = useTransition()
@@ -104,6 +105,16 @@ export function PenerimaanTable({ data, isAdmin, sort, order }: {
     })
   }
 
+  function handleVerifyAll() {
+    if (!confirm(`Verifikasi semua ${totalDraft ?? "?"} draft sekaligus? Tindakan tidak bisa dibatalkan.`)) return
+    startTransition(async () => {
+      const result = await verifyAllDraft()
+      if (!result.ok) { toast.error(result.pesan); return }
+      toast.success(`${result.data.berhasil} transaksi berhasil diverifikasi`)
+      setSelected(new Set())
+    })
+  }
+
   function handleBulkDelete() {
     if (!confirm(`Hapus ${selected.size} transaksi secara permanen? Tindakan tidak bisa dibatalkan.`)) return
     startTransition(async () => {
@@ -118,6 +129,20 @@ export function PenerimaanTable({ data, isAdmin, sort, order }: {
 
   return (
     <div className="flex flex-col gap-3">
+      {isAdmin && totalDraft != null && totalDraft > 0 && (
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleVerifyAll}
+            disabled={pending}
+            className="gap-1.5 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
+          >
+            <CheckCheck className="h-3.5 w-3.5" />
+            {pending ? "Memverifikasi..." : `Verifikasi Semua Draft (${totalDraft})`}
+          </Button>
+        </div>
+      )}
       <Card className="overflow-hidden p-0">
         <CardContent className="p-0">
         <Table>

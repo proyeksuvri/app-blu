@@ -190,16 +190,36 @@ export async function bulkDeletePenerimaan(ids: string[]): Promise<ActionResult<
 export async function bulkVerifyPenerimaan(ids: string[]): Promise<ActionResult<{ berhasil: number; gagal: number }>> {
   const profile = await requireRole(["ADMIN"])
   if (ids.length === 0) return { ok: false, pesan: "Tidak ada transaksi dipilih" }
-  if (ids.length > 100) return { ok: false, pesan: "Maksimal 100 transaksi sekaligus" }
+  if (ids.length > 2000) return { ok: false, pesan: "Maksimal 2000 transaksi sekaligus" }
   const sb = await createClient()
-  const results = await Promise.all(
-    ids.map((id) => sb.rpc("fn_verify_penerimaan", { p_id: id, p_user: profile.id }))
-  )
-  const berhasil = results.filter((r) => !r.error).length
-  const gagal = results.filter((r) => !!r.error).length
+  const { error, count } = await sb
+    .from("penerimaan")
+    .update({ status: "verified", verified_by: profile.id, verified_at: new Date().toISOString() })
+    .in("id", ids)
+    .eq("status", "draft")
+  if (error) return { ok: false, pesan: error.message }
   await invalidateDashboardCache()
   revalidatePath("/penerimaan")
-  return { ok: true, data: { berhasil, gagal } }
+  return { ok: true, data: { berhasil: count ?? ids.length, gagal: 0 } }
+}
+
+export async function countDraft(): Promise<number> {
+  const sb = await createClient()
+  const { count } = await sb.from("penerimaan").select("id", { count: "exact", head: true }).eq("status", "draft")
+  return count ?? 0
+}
+
+export async function verifyAllDraft(): Promise<ActionResult<{ berhasil: number }>> {
+  const profile = await requireRole(["ADMIN"])
+  const sb = await createClient()
+  const { error, count } = await sb
+    .from("penerimaan")
+    .update({ status: "verified", verified_by: profile.id, verified_at: new Date().toISOString() })
+    .eq("status", "draft")
+  if (error) return { ok: false, pesan: error.message }
+  await invalidateDashboardCache()
+  revalidatePath("/penerimaan")
+  return { ok: true, data: { berhasil: count ?? 0 } }
 }
 
 export async function voidPenerimaan(id: string, alasan: string): Promise<ActionResult> {

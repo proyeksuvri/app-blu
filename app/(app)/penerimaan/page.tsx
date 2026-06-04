@@ -2,7 +2,7 @@ import { Suspense } from "react"
 import Link from "next/link"
 import { getCurrentProfile } from "@/lib/session"
 import { redirect } from "next/navigation"
-import { listPenerimaan } from "@/app/actions/penerimaan"
+import { listPenerimaan, countDraft } from "@/app/actions/penerimaan"
 import { listJenis } from "@/app/actions/master"
 import { PageHeader } from "@/components/page-header"
 import { Plus } from "lucide-react"
@@ -28,7 +28,10 @@ export default async function PenerimaanPage({
   const statuses = (params.status ?? "").split(",").filter(Boolean)
   const jenisIds = (params.jenis_id ?? "").split(",").filter(Boolean)
 
-  const [{ data, count }, jenisList] = await Promise.all([
+  const isOperator = profile.role.kode === "OPERATOR"
+  const isAdmin = profile.role.kode === "ADMIN"
+
+  const [{ data, count }, jenisList, totalDraft] = await Promise.all([
     listPenerimaan({
       statuses: statuses.length ? statuses : undefined,
       jenis_ids: jenisIds.length ? jenisIds : undefined,
@@ -37,10 +40,8 @@ export default async function PenerimaanPage({
       order,
     }),
     listJenis(),
+    isAdmin ? countDraft() : Promise.resolve(0),
   ])
-
-  const isOperator = profile.role.kode === "OPERATOR"
-  const isAdmin = profile.role.kode === "ADMIN"
 
   const jenisOptions = jenisList.map((j) => ({ value: j.id, label: j.nama }))
 
@@ -64,7 +65,7 @@ export default async function PenerimaanPage({
       </Suspense>
 
       <Suspense>
-        <PenerimaanTable data={data as Parameters<typeof PenerimaanTable>[0]["data"]} isAdmin={isAdmin} sort={sort} order={order} />
+        <PenerimaanTable data={data as Parameters<typeof PenerimaanTable>[0]["data"]} isAdmin={isAdmin} sort={sort} order={order} totalDraft={totalDraft} />
       </Suspense>
 
       <Suspense>
