@@ -6,6 +6,8 @@ import { getRedis } from "@/lib/redis"
 
 export type DashboardStats = {
   totalBulanIni: number
+  totalBulanLalu: number
+  voidBulanIni: number
   draftCount: number
   hariIni: {
     count: number
@@ -46,13 +48,17 @@ export async function getDashboardStats(): Promise<DashboardStats | null> {
   const now = new Date()
   const tglAwal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`
   const tglAkhir = now.toISOString().split("T")[0]
+  const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  const tglAwalLalu = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, "0")}-01`
+  const lastDayPrev = new Date(now.getFullYear(), now.getMonth(), 0).getDate()
+  const tglAkhirLalu = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, "0")}-${String(lastDayPrev).padStart(2, "0")}`
 
   let baseQ = sb.from("penerimaan").select("jumlah, status, tanggal_terima, created_at")
   if (profile.role.kode === "OPERATOR" && profile.unit_kerja_id) {
     baseQ = baseQ.eq("unit_kerja_id", profile.unit_kerja_id) as typeof baseQ
   }
 
-  const [bulanRes, draftRes, hariIniRes, terbaruRes] = await Promise.all([
+  const [bulanRes, bulanLaluRes, voidRes, draftRes, hariIniRes, terbaruRes] = await Promise.all([
     // Total verified bulan ini
     sb.from("penerimaan")
       .select("jumlah")
@@ -62,6 +68,24 @@ export async function getDashboardStats(): Promise<DashboardStats | null> {
       .then(({ data }) =>
         (data ?? []).reduce((s, r) => s + Number(r.jumlah), 0)
       ),
+
+    // Total verified bulan lalu
+    sb.from("penerimaan")
+      .select("jumlah")
+      .eq("status", "verified")
+      .gte("tanggal_terima", tglAwalLalu)
+      .lte("tanggal_terima", tglAkhirLalu)
+      .then(({ data }) =>
+        (data ?? []).reduce((s, r) => s + Number(r.jumlah), 0)
+      ),
+
+    // Void bulan ini
+    sb.from("penerimaan")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "void")
+      .gte("tanggal_terima", tglAwal)
+      .lte("tanggal_terima", tglAkhir)
+      .then(({ count }) => count ?? 0),
 
     // Draft menunggu verifikasi
     sb.from("penerimaan")
@@ -159,6 +183,8 @@ export async function getDashboardStats(): Promise<DashboardStats | null> {
 
   const result = {
     totalBulanIni: bulanRes,
+    totalBulanLalu: bulanLaluRes,
+    voidBulanIni: voidRes,
     draftCount: draftRes,
     hariIni: hariIniRes,
     chartData,

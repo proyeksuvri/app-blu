@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardHeader, CardContent, CardAction, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { MonthlyChart } from "./_monthly-chart"
+import { DashboardChart } from "./_chart"
 
 const rupiah = (n: number) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n)
@@ -20,6 +21,10 @@ export default async function DashboardPage() {
   const isAdmin = stats.role === "ADMIN"
   const isPimpinan = stats.role === "PIMPINAN"
   const isOperator = stats.role === "OPERATOR"
+
+  const growth = stats.totalBulanLalu > 0
+    ? Math.round(((stats.totalBulanIni - stats.totalBulanLalu) / stats.totalBulanLalu) * 100)
+    : null
 
   return (
     <div className="flex flex-col gap-6">
@@ -40,6 +45,7 @@ export default async function DashboardPage() {
         <StatCard
           label="Total Verified Bulan Ini"
           value={rupiah(stats.totalBulanIni)}
+          sub={growth !== null ? `${growth >= 0 ? "+" : ""}${growth}% vs bulan lalu` : undefined}
           color={stats.totalBulanIni > 0 ? "green" : "default"}
         />
         <StatCard
@@ -61,6 +67,15 @@ export default async function DashboardPage() {
             href={isAdmin ? "/penerimaan?status=draft" : undefined}
           />
         )}
+        {(isAdmin || isPimpinan) && stats.voidBulanIni > 0 && (
+          <StatCard
+            label="Void Bulan Ini"
+            value={String(stats.voidBulanIni)}
+            sub="transaksi dibatalkan"
+            color="red"
+            href={isAdmin ? "/penerimaan?status=void" : undefined}
+          />
+        )}
       </div>
 
       {/* Quick actions (operator) */}
@@ -72,6 +87,9 @@ export default async function DashboardPage() {
           </Button>
         </div>
       )}
+
+      {/* Chart 7 hari */}
+      <DashboardChart data={stats.chartData} />
 
       {/* Tren 12 bulan */}
       {(isAdmin || isPimpinan) && (
@@ -147,13 +165,14 @@ function StatCard({
   label: string
   value: string
   sub?: string
-  color: "green" | "blue" | "amber" | "default"
+  color: "green" | "blue" | "amber" | "red" | "default"
   href?: string
 }) {
   const valueColors = {
     green:   "text-green-400",
     blue:    "text-foreground",
     amber:   "text-amber-400",
+    red:     "text-red-400",
     default: "text-foreground",
   }
 
