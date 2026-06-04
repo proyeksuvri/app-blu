@@ -43,6 +43,16 @@ export default async function DashboardPage() {
       {/* Stat cards */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
         <StatCard
+          label="Total Penerimaan Bulan Ini"
+          value={rupiah(stats.totalPenerimaanBulanIni)}
+          sub={
+            stats.totalPenerimaanDraftBulanIni > 0
+              ? `${stats.totalPenerimaanVerifiedBulanIni} verified · ${stats.totalPenerimaanDraftBulanIni} pending`
+              : `${stats.totalPenerimaanVerifiedBulanIni} transaksi`
+          }
+          color="blue"
+        />
+        <StatCard
           label="Total Verified Bulan Ini"
           value={rupiah(stats.totalBulanIni)}
           sub={growth !== null ? `${growth >= 0 ? "+" : ""}${growth}% vs bulan lalu` : undefined}

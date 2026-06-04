@@ -5,6 +5,9 @@ import { getCurrentProfile } from "@/lib/session"
 import { getRedis } from "@/lib/redis"
 
 export type DashboardStats = {
+  totalPenerimaanBulanIni: number
+  totalPenerimaanVerifiedBulanIni: number
+  totalPenerimaanDraftBulanIni: number
   totalBulanIni: number
   totalBulanLalu: number
   voidBulanIni: number
@@ -58,7 +61,23 @@ export async function getDashboardStats(): Promise<DashboardStats | null> {
     baseQ = baseQ.eq("unit_kerja_id", profile.unit_kerja_id) as typeof baseQ
   }
 
-  const [bulanRes, bulanLaluRes, voidRes, draftRes, hariIniRes, terbaruRes] = await Promise.all([
+  const [pipelineRes, bulanRes, bulanLaluRes, voidRes, draftRes, hariIniRes, terbaruRes] = await Promise.all([
+    // Total pipeline bulan ini (draft + verified)
+    sb.from("penerimaan")
+      .select("jumlah, status")
+      .in("status", ["draft", "verified"])
+      .gte("tanggal_terima", tglAwal)
+      .lte("tanggal_terima", tglAkhir)
+      .then(({ data }) => {
+        const rows = data ?? []
+        return {
+          total:         rows.reduce((s, r) => s + Number(r.jumlah), 0),
+          verifiedCount: rows.filter((r) => r.status === "verified").length,
+          draftCount:    rows.filter((r) => r.status === "draft").length,
+        }
+      }),
+
+
     // Total verified bulan ini
     sb.from("penerimaan")
       .select("jumlah")
@@ -182,6 +201,9 @@ export async function getDashboardStats(): Promise<DashboardStats | null> {
   })
 
   const result = {
+    totalPenerimaanBulanIni:        pipelineRes.total,
+    totalPenerimaanVerifiedBulanIni: pipelineRes.verifiedCount,
+    totalPenerimaanDraftBulanIni:    pipelineRes.draftCount,
     totalBulanIni: bulanRes,
     totalBulanLalu: bulanLaluRes,
     voidBulanIni: voidRes,
