@@ -80,7 +80,7 @@ export async function commitImport(rows: ImportPreviewRow[]): Promise<{ ok: bool
 
   const validRows = rows.filter((r) => r.valid)
   if (validRows.length === 0) return { ok: false, pesan: "Tidak ada baris valid untuk diimpor" }
-  if (validRows.length > 500) return { ok: false, pesan: "Maksimal 500 baris per import" }
+  if (validRows.length > 2000) return { ok: false, pesan: "Maksimal 2000 baris per import" }
 
   // Group baris per tahun, generate nomor bukti batch per tahun
   const tahunGroups = new Map<number, number[]>()

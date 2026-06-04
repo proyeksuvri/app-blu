@@ -58,7 +58,7 @@ export function ImportClient() {
         const rows: Record<string, unknown>[] = XLSX.utils.sheet_to_json(ws, { defval: "" })
 
         if (rows.length === 0) { toast.error("File kosong"); return }
-        if (rows.length > 500) { toast.error("Maksimal 500 baris"); return }
+        if (rows.length > 2000) { toast.error("Maksimal 2000 baris"); return }
 
         const importRows: ImportRow[] = rows.map((r, i) => ({
           baris: i + 2,
@@ -206,7 +206,7 @@ export function ImportClient() {
         <Upload className="h-8 w-8 text-muted-foreground/50" />
         <div className="text-center">
           <p className="text-sm text-muted-foreground">Drag & drop file di sini, atau klik untuk pilih</p>
-          <p className="text-xs text-muted-foreground/50 mt-1">Format: .xlsx, .xls, .csv — Maks. 500 baris</p>
+          <p className="text-xs text-muted-foreground/50 mt-1">Format: .xlsx, .xls, .csv — Maks. 2000 baris</p>
         </div>
         <input type="file" accept=".xlsx,.xls,.csv" onChange={handleFile} className="hidden" />
       </label>
