@@ -207,10 +207,10 @@ export function LaporanClient({ initialHarian, initialBulanan, initialRekening }
             <Input type="date" value={tanggal} onChange={(e) => fetchHarian(e.target.value)}
               className="w-44 bg-muted/50 border-border text-foreground" disabled={pending} />
             <div className="flex gap-2">
-              <Button variant="ghost" size="sm" onClick={exportHarian} className="gap-1.5 text-foreground/50 hover:text-foreground">
+              <Button variant="ghost" size="sm" onClick={exportHarian} className="gap-1.5 text-muted-foreground hover:text-foreground">
                 <Download className="h-4 w-4" />Excel
               </Button>
-              <Button variant="ghost" size="sm" onClick={exportHarianPDF} disabled={pdfLoadingHarian} className="gap-1.5 text-foreground/50 hover:text-foreground">
+              <Button variant="ghost" size="sm" onClick={exportHarianPDF} disabled={pdfLoadingHarian} className="gap-1.5 text-muted-foreground hover:text-foreground">
                 <FileText className="h-4 w-4" />{pdfLoadingHarian ? "..." : "PDF"}
               </Button>
             </div>
@@ -311,10 +311,10 @@ export function LaporanClient({ initialHarian, initialBulanan, initialRekening }
               </Select>
             </div>
             <div className="flex gap-2">
-              <Button variant="ghost" size="sm" onClick={exportBulanan} className="gap-1.5 text-foreground/50 hover:text-foreground">
+              <Button variant="ghost" size="sm" onClick={exportBulanan} className="gap-1.5 text-muted-foreground hover:text-foreground">
                 <Download className="h-4 w-4" />Excel
               </Button>
-              <Button variant="ghost" size="sm" onClick={exportBulananPDF} disabled={pdfLoadingBulanan} className="gap-1.5 text-foreground/50 hover:text-foreground">
+              <Button variant="ghost" size="sm" onClick={exportBulananPDF} disabled={pdfLoadingBulanan} className="gap-1.5 text-muted-foreground hover:text-foreground">
                 <FileText className="h-4 w-4" />{pdfLoadingBulanan ? "..." : "PDF"}
               </Button>
             </div>
@@ -333,8 +333,8 @@ export function LaporanClient({ initialHarian, initialBulanan, initialRekening }
                   <div className="divide-y divide-border/50">
                     {Object.values(kat.jenis).map((j) => (
                       <div key={j.kode} className="flex items-center justify-between px-6 py-2.5">
-                        <span className="text-sm text-foreground/60">{j.nama}</span>
-                        <span className="text-sm text-foreground/70">{rupiah(j.total)}</span>
+                        <span className="text-sm text-foreground/70">{j.nama}</span>
+                        <span className="text-sm text-foreground/80">{rupiah(j.total)}</span>
                       </div>
                     ))}
                   </div>
@@ -366,10 +366,10 @@ export function LaporanClient({ initialHarian, initialBulanan, initialRekening }
               </div>
             </div>
             <div className="flex gap-2">
-              <Button variant="ghost" size="sm" onClick={exportRekening} className="gap-1.5 text-foreground/50 hover:text-foreground">
+              <Button variant="ghost" size="sm" onClick={exportRekening} className="gap-1.5 text-muted-foreground hover:text-foreground">
                 <Download className="h-4 w-4" />Excel
               </Button>
-              <Button variant="ghost" size="sm" onClick={exportRekeningPDF} disabled={pdfLoadingRekening} className="gap-1.5 text-foreground/50 hover:text-foreground">
+              <Button variant="ghost" size="sm" onClick={exportRekeningPDF} disabled={pdfLoadingRekening} className="gap-1.5 text-muted-foreground hover:text-foreground">
                 <FileText className="h-4 w-4" />{pdfLoadingRekening ? "..." : "PDF"}
               </Button>
             </div>
@@ -382,7 +382,7 @@ export function LaporanClient({ initialHarian, initialBulanan, initialRekening }
               {byRekening.map((r) => (
                 <div key={r.kode} className="rounded-xl border border-border px-5 py-4 flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-foreground/80">{r.nama_bank}</p>
+                    <p className="text-sm font-medium text-foreground">{r.nama_bank}</p>
                     <p className="text-xs text-muted-foreground">{r.nama_rekening} — {r.nomor_rekening}</p>
                   </div>
                   <span className="text-sm font-bold text-foreground">{rupiah(r.total)}</span>

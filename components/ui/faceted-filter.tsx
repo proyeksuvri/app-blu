@@ -1,20 +1,16 @@
 "use client"
 
-import { Check, PlusCircle, X } from "lucide-react"
+import { X } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandSeparator,
-} from "@/components/ui/command"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Separator } from "@/components/ui/separator"
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 
 export type FilterOption = {
@@ -27,120 +23,58 @@ type FacetedFilterProps = {
   title: string
   paramKey: string
   options: FilterOption[]
+  placeholder?: string
 }
 
-export function FacetedFilter({ title, paramKey, options }: FacetedFilterProps) {
+const ALL_VALUE = "__all__"
+
+export function FacetedFilter({
+  title,
+  paramKey,
+  options,
+  placeholder = "Semua",
+}: FacetedFilterProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
 
   const raw = searchParams.get(paramKey) ?? ""
-  const selected = new Set(raw.split(",").filter(Boolean))
+  const value = raw.split(",").filter(Boolean)[0] ?? ALL_VALUE
+  const items = [{ value: ALL_VALUE, label: placeholder }, ...options]
 
-  function toggle(value: string) {
-    const next = new Set(selected)
-    if (next.has(value)) next.delete(value)
-    else next.add(value)
-
+  function update(nextValue: string | null) {
     const params = new URLSearchParams(searchParams.toString())
     params.delete("page")
-    if (next.size > 0) params.set(paramKey, [...next].join(","))
+    if (nextValue && nextValue !== ALL_VALUE) params.set(paramKey, nextValue)
     else params.delete(paramKey)
     router.push(`?${params.toString()}`)
   }
 
-  function clear() {
-    const params = new URLSearchParams(searchParams.toString())
-    params.delete(paramKey)
-    params.delete("page")
-    router.push(`?${params.toString()}`)
-  }
-
   return (
-    <Popover>
-      <PopoverTrigger
-        className={cn(
-          buttonVariants({ variant: "outline", size: "sm" }),
-          "h-9 gap-1.5 border-dashed"
-        )}
+    <div className="flex min-w-56 flex-col gap-1.5">
+      <label className="text-xs font-medium text-foreground">{title}</label>
+      <Select
+        items={items}
+        value={value}
+        onValueChange={(selectedValue) => update(selectedValue as string | null)}
       >
-        <PlusCircle className="h-3.5 w-3.5" />
-        {title}
-        {selected.size > 0 && (
-          <>
-            <Separator orientation="vertical" className="mx-0.5 h-4" />
-            {selected.size > 2 ? (
-              <Badge
-                variant="secondary"
-                className="rounded-sm px-1 font-normal text-[10px] h-4"
+        <SelectTrigger className="h-8 w-full rounded-lg bg-input/20 px-3 text-sm font-medium">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent className="rounded-lg p-1" align="start">
+          <SelectGroup>
+            {items.map((option) => (
+              <SelectItem
+                key={option.value}
+                value={option.value}
+                className="min-h-8 px-3 text-sm font-medium"
               >
-                {selected.size} dipilih
-              </Badge>
-            ) : (
-              [...selected].map((v) => (
-                <Badge
-                  key={v}
-                  variant="secondary"
-                  className="rounded-sm px-1 font-normal text-[10px] h-4"
-                >
-                  {options.find((o) => o.value === v)?.label ?? v}
-                </Badge>
-              ))
-            )}
-          </>
-        )}
-      </PopoverTrigger>
-      <PopoverContent className="w-52 p-0" align="start">
-        <Command>
-          <CommandInput placeholder={`Cari ${title.toLowerCase()}...`} />
-          <CommandList>
-            <CommandEmpty>Tidak ditemukan.</CommandEmpty>
-            <CommandGroup>
-              {options.map((option) => {
-                const isSelected = selected.has(option.value)
-                return (
-                  <CommandItem
-                    key={option.value}
-                    value={option.value}
-                    data-checked={isSelected || undefined}
-                    onSelect={() => toggle(option.value)}
-                  >
-                    <div
-                      className={cn(
-                        "flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border border-primary",
-                        isSelected
-                          ? "bg-primary text-primary-foreground"
-                          : "opacity-50 [&_svg]:invisible"
-                      )}
-                    >
-                      <Check className="h-3 w-3" />
-                    </div>
-                    <span>{option.label}</span>
-                    {option.count != null && (
-                      <span className="ml-auto tabular-nums text-xs text-muted-foreground">
-                        {option.count}
-                      </span>
-                    )}
-                  </CommandItem>
-                )
-              })}
-            </CommandGroup>
-            {selected.size > 0 && (
-              <>
-                <CommandSeparator />
-                <CommandGroup>
-                  <CommandItem
-                    onSelect={clear}
-                    className="justify-center text-center text-xs text-muted-foreground"
-                  >
-                    Hapus filter
-                  </CommandItem>
-                </CommandGroup>
-              </>
-            )}
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+    </div>
   )
 }
 

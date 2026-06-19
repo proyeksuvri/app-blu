@@ -80,18 +80,18 @@ function InviteForm({ roles, unitKerja, onDone }: { roles: Role[]; unitKerja: Un
         <div className="flex flex-col gap-1.5">
           <Label className="text-foreground/60 text-xs">Email</Label>
           <Input {...register("email")} type="email" placeholder="nama@uinpalopo.ac.id" className="bg-muted/50 border-border text-foreground" />
-          {errors.email && <p className="text-xs text-red-400">{errors.email.message}</p>}
+          {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
         </div>
         <div className="flex flex-col gap-1.5">
           <Label className="text-foreground/60 text-xs">Password Awal</Label>
           <Input {...register("password")} type="password" placeholder="Min. 6 karakter" className="bg-muted/50 border-border text-foreground" />
-          {errors.password && <p className="text-xs text-red-400">{errors.password.message}</p>}
+          {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
         </div>
       </div>
       <div className="flex flex-col gap-1.5">
         <Label className="text-foreground/60 text-xs">Nama Lengkap</Label>
         <Input {...register("nama_lengkap")} placeholder="Nama lengkap" className="bg-muted/50 border-border text-foreground" />
-        {errors.nama_lengkap && <p className="text-xs text-red-400">{errors.nama_lengkap.message}</p>}
+        {errors.nama_lengkap && <p className="text-xs text-destructive">{errors.nama_lengkap.message}</p>}
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
@@ -108,7 +108,7 @@ function InviteForm({ roles, unitKerja, onDone }: { roles: Role[]; unitKerja: Un
               </SelectContent>
             </Select>
           )} />
-          {errors.role_id && <p className="text-xs text-red-400">Wajib dipilih</p>}
+          {errors.role_id && <p className="text-xs text-destructive">Wajib dipilih</p>}
         </div>
         <div className="flex flex-col gap-1.5">
           <Label className="text-foreground/60 text-xs">Unit Kerja (opsional)</Label>
@@ -164,7 +164,7 @@ function EditForm({ row, roles, unitKerja, onDone }: { row: Pengguna; roles: Rol
       <div className="flex flex-col gap-1.5">
         <Label className="text-foreground/60 text-xs">Nama Lengkap</Label>
         <Input {...register("nama_lengkap")} className="bg-muted/50 border-border text-foreground" />
-        {errors.nama_lengkap && <p className="text-xs text-red-400">{errors.nama_lengkap.message}</p>}
+        {errors.nama_lengkap && <p className="text-xs text-destructive">{errors.nama_lengkap.message}</p>}
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
@@ -233,7 +233,7 @@ function ResetPwForm({ id, onDone }: { id: string; onDone: () => void }) {
       <div className="flex flex-col gap-1.5">
         <Label className="text-foreground/60 text-xs">Password Baru</Label>
         <Input {...register("password")} type="password" placeholder="Min. 6 karakter" className="bg-muted/50 border-border text-foreground" />
-        {errors.password && <p className="text-xs text-red-400">{errors.password.message}</p>}
+        {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
       </div>
       <Button type="submit" disabled={pending} className="w-full">
         {pending ? "Menyimpan..." : "Reset Password"}

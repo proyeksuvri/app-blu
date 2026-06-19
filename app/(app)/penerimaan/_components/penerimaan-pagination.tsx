@@ -1,10 +1,13 @@
 "use client"
 
-import { useSearchParams } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import {
   Pagination, PaginationContent, PaginationItem,
   PaginationLink, PaginationNext, PaginationPrevious, PaginationEllipsis,
 } from "@/components/ui/pagination"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+
+const PAGE_SIZE_OPTIONS = [25, 50, 100]
 
 function buildPages(current: number, total: number): (number | "…")[] {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
@@ -21,10 +24,9 @@ export function PenerimaanPagination({
 }: {
   count: number; page: number; pageSize: number
 }) {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const totalPages = Math.ceil(count / pageSize)
-
-  if (totalPages <= 1) return null
 
   function href(p: number) {
     const params = new URLSearchParams(searchParams.toString())
@@ -32,11 +34,32 @@ export function PenerimaanPagination({
     return `?${params.toString()}`
   }
 
+  function handlePageSize(val: string | null) {
+    if (!val) return
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("limit", val)
+    params.delete("page")
+    router.push(`?${params.toString()}`)
+  }
+
+  if (totalPages <= 1 && count <= Math.min(...PAGE_SIZE_OPTIONS)) return null
+
   return (
     <div className="flex items-center justify-between text-xs text-muted-foreground">
-      <span>
-        {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, count)} dari {count} transaksi
-      </span>
+      <div className="flex items-center gap-2">
+        <span className="hidden sm:inline">Baris per halaman</span>
+        <Select value={String(pageSize)} onValueChange={handlePageSize}>
+          <SelectTrigger className="h-7 w-20 text-xs border-border bg-transparent">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {PAGE_SIZE_OPTIONS.map((n) => (
+              <SelectItem key={n} value={String(n)} className="text-xs">{n}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <span>{(page - 1) * pageSize + 1}–{Math.min(page * pageSize, count)} dari {count}</span>
+      </div>
       <Pagination className="w-auto mx-0">
         <PaginationContent>
           <PaginationItem>

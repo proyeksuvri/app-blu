@@ -8,14 +8,19 @@ import { PenerimaanStatusBadge } from "@/components/penerimaan-status-badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardHeader, CardContent, CardAction, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { MonthlyChart } from "./_monthly-chart"
-import { DashboardChart } from "./_chart"
 
 const rupiah = (n: number) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n)
 
-export default async function DashboardPage() {
-  const stats = await getDashboardStats()
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ bulan?: string }>
+}) {
+  const params = await searchParams
+  const stats = await getDashboardStats(params.bulan)
   if (!stats) redirect("/")
 
   const isAdmin = stats.role === "ADMIN"
@@ -32,28 +37,46 @@ export default async function DashboardPage() {
       {/* Header */}
       <div>
         <h1 className="text-lg font-semibold text-foreground">
-          {format(new Date(), "MMMM yyyy", { locale: id })}
+          Dashboard Penerimaan
         </h1>
         <p className="mt-0.5 text-sm text-muted-foreground">
-          {stats.nama}
-          {stats.role === "OPERATOR" && stats.unitNama ? ` · ${stats.unitNama}` : ""}
+          Ringkasan kinerja penerimaan {stats.periode.label} - {stats.nama}
+          {stats.role === "OPERATOR" && stats.unitNama ? ` - ${stats.unitNama}` : ""}
         </p>
       </div>
 
       {/* Stat cards */}
+      <form action="/dashboard" className="flex flex-wrap items-end gap-3">
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="bulan" className="text-xs text-muted-foreground">
+            Bulan kartu
+          </label>
+          <Input
+            id="bulan"
+            name="bulan"
+            type="month"
+            defaultValue={stats.periode.bulan}
+            className="w-44"
+          />
+        </div>
+        <Button type="submit" size="sm">
+          Terapkan
+        </Button>
+      </form>
+
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
         <StatCard
-          label="Total Penerimaan Bulan Ini"
+          label={`Total Penerimaan ${stats.periode.label}`}
           value={rupiah(stats.totalPenerimaanBulanIni)}
           sub={
             stats.totalPenerimaanDraftBulanIni > 0
-              ? `${stats.totalPenerimaanVerifiedBulanIni} verified · ${stats.totalPenerimaanDraftBulanIni} pending`
+              ? `${stats.totalPenerimaanVerifiedBulanIni} verified Â· ${stats.totalPenerimaanDraftBulanIni} pending`
               : `${stats.totalPenerimaanVerifiedBulanIni} transaksi`
           }
           color="blue"
         />
         <StatCard
-          label="Total Verified Bulan Ini"
+          label={`Total Verified ${stats.periode.label}`}
           value={rupiah(stats.totalBulanIni)}
           sub={growth !== null ? `${growth >= 0 ? "+" : ""}${growth}% vs bulan lalu` : undefined}
           color={stats.totalBulanIni > 0 ? "green" : "default"}
@@ -63,7 +86,7 @@ export default async function DashboardPage() {
           value={rupiah(stats.hariIni.verifiedTotal)}
           sub={
             stats.hariIni.draftCount > 0
-              ? `${stats.hariIni.verifiedCount} verified · ${stats.hariIni.draftCount} pending`
+              ? `${stats.hariIni.verifiedCount} verified Â· ${stats.hariIni.draftCount} pending`
               : `${stats.hariIni.verifiedCount} transaksi`
           }
           color="blue"
@@ -72,14 +95,14 @@ export default async function DashboardPage() {
           <StatCard
             label="Menunggu Verifikasi"
             value={String(stats.draftCount)}
-            sub="transaksi draft"
+            sub={`draft ${stats.periode.label}`}
             color={stats.draftCount > 0 ? "amber" : "default"}
-            href={isAdmin ? "/penerimaan?status=draft" : undefined}
+            href={isAdmin ? `/penerimaan?status=draft` : undefined}
           />
         )}
         {(isAdmin || isPimpinan) && stats.voidBulanIni > 0 && (
           <StatCard
-            label="Void Bulan Ini"
+            label={`Void ${stats.periode.label}`}
             value={String(stats.voidBulanIni)}
             sub="transaksi dibatalkan"
             color="red"
@@ -97,9 +120,6 @@ export default async function DashboardPage() {
           </Button>
         </div>
       )}
-
-      {/* Chart 7 hari */}
-      <DashboardChart data={stats.chartData} />
 
       {/* Tren 12 bulan */}
       {(isAdmin || isPimpinan) && (
@@ -146,10 +166,10 @@ export default async function DashboardPage() {
                       {format(new Date(row.tanggal_terima), "dd MMM yyyy", { locale: id })}
                     </TableCell>
                     <TableCell className="text-sm text-foreground/70 py-3">
-                      {row.jenis?.nama ?? "—"}
+                      {row.jenis?.nama ?? "â€”"}
                     </TableCell>
                     <TableCell className="text-sm text-foreground/50 py-3">
-                      {row.unit?.kode ?? "—"}
+                      {row.unit?.kode ?? "â€”"}
                     </TableCell>
                     <TableCell className="text-sm text-foreground/80 py-3 text-right font-medium">
                       {rupiah(row.jumlah)}
@@ -179,10 +199,10 @@ function StatCard({
   href?: string
 }) {
   const valueColors = {
-    green:   "text-green-400",
+    green:   "text-foreground",
     blue:    "text-foreground",
-    amber:   "text-amber-400",
-    red:     "text-red-400",
+    amber:   "text-foreground",
+    red:     "text-destructive",
     default: "text-foreground",
   }
 
@@ -198,7 +218,7 @@ function StatCard({
 
   if (href) {
     return (
-      <Link href={href} className="hover:opacity-80 transition-opacity">
+      <Link href={href} className="transition-opacity hover:opacity-80">
         {inner}
       </Link>
     )

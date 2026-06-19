@@ -20,6 +20,7 @@ export type PenerimaanFilter = {
   rekening_id?: string
   q?: string
   page?: number
+  limit?: number
   sort?: "tanggal_terima" | "jumlah" | "nomor_bukti"
   order?: "asc" | "desc"
 }
@@ -29,7 +30,7 @@ export async function listPenerimaan(filter: PenerimaanFilter = {}) {
   if (!profile) return { data: [], count: 0 }
 
   const sb = await createClient()
-  const limit = 20
+  const limit = [25, 50, 100].includes(filter.limit ?? 0) ? filter.limit! : 25
   const offset = ((filter.page ?? 1) - 1) * limit
 
   let q = sb.from("penerimaan").select(`
@@ -187,6 +188,21 @@ export async function bulkDeletePenerimaan(ids: string[]): Promise<ActionResult<
   return { ok: true, data: { berhasil: count ?? ids.length, gagal: 0 } }
 }
 
+export async function deleteAllPenerimaan(): Promise<ActionResult<{ berhasil: number }>> {
+  await requireRole(["ADMIN"])
+  const sb = await createClient()
+  const { error, count } = await sb
+    .from("penerimaan")
+    .delete({ count: "exact" })
+    .in("status", ["draft", "verified"])
+
+  if (error) return { ok: false, pesan: error.message }
+  await invalidateDashboardCache()
+  revalidatePath("/penerimaan")
+  revalidatePath("/dashboard")
+  return { ok: true, data: { berhasil: count ?? 0 } }
+}
+
 export async function bulkVerifyPenerimaan(ids: string[]): Promise<ActionResult<{ berhasil: number; gagal: number }>> {
   const profile = await requireRole(["ADMIN"])
   if (ids.length === 0) return { ok: false, pesan: "Tidak ada transaksi dipilih" }
@@ -210,7 +226,7 @@ export async function exportPenerimaan(filter: Omit<PenerimaanFilter, "page">) {
   let q = sb.from("penerimaan").select(`
     nomor_bukti, tanggal_terima, jumlah, nomor_referensi, uraian, status,
     verified_at,
-    jenis:jenis_pendapatan(nama),
+    jenis:jenis_pendapatan(nama, kategori:kategori_pendapatan(nama)),
     sub:sub_pendapatan(nama),
     unit:unit_kerja(kode, nama),
     rekening:rekening_bank(nama_bank, nama_rekening),
@@ -231,16 +247,33 @@ export async function exportPenerimaan(filter: Omit<PenerimaanFilter, "page">) {
   const sortCol = filter.sort ?? "tanggal_terima"
   q = q.order(sortCol, { ascending: filter.order === "asc" })
 
-  const { data, error } = await q
-  if (error) return { ok: false as const, pesan: error.message }
+  // Fetch semua baris dalam batch 1000 (Supabase default cap)
+  const BATCH = 1000
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const allData: any[] = []
+  let offset = 0
+  while (true) {
+    const { data: batch, error } = await q.range(offset, offset + BATCH - 1)
+    if (error) return { ok: false as const, pesan: error.message }
+    if (!batch || batch.length === 0) break
+    allData.push(...batch)
+    if (batch.length < BATCH) break
+    offset += BATCH
+  }
 
   const resolve = <T>(v: T | T[] | null | undefined): T | null =>
     v == null ? null : Array.isArray(v) ? (v[0] ?? null) : v
 
-  const rows = (data ?? []).map((r) => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = allData.map((r: any) => {
+    const jenis = resolve(r.jenis) as { nama?: string; kategori?: { nama?: string } | { nama?: string }[] | null } | null
+    const kategori = resolve(jenis?.kategori)
+
+    return {
     "Nomor Bukti":    r.nomor_bukti,
     "Tanggal":        r.tanggal_terima,
-    "Jenis":          (resolve(r.jenis) as { nama?: string } | null)?.nama ?? "",
+    "Kategori":       kategori?.nama ?? "",
+    "Jenis":          jenis?.nama ?? "",
     "Sub Jenis":      (resolve(r.sub) as { nama?: string } | null)?.nama ?? "",
     "Unit Kerja":     (resolve(r.unit) as { kode?: string; nama?: string } | null)?.nama ?? "",
     "Rekening":       (resolve(r.rekening) as { nama_bank?: string; nama_rekening?: string } | null)?.nama_bank ?? "",
@@ -251,7 +284,8 @@ export async function exportPenerimaan(filter: Omit<PenerimaanFilter, "page">) {
     "Status":         r.status,
     "Diverifikasi":   r.verified_at ? r.verified_at.toString().slice(0, 10) : "",
     "Verifikator":    (resolve(r.verifier) as { nama_lengkap?: string } | null)?.nama_lengkap ?? "",
-  }))
+    }
+  })
 
   return { ok: true as const, rows }
 }
@@ -259,6 +293,16 @@ export async function exportPenerimaan(filter: Omit<PenerimaanFilter, "page">) {
 export async function countDraft(): Promise<number> {
   const sb = await createClient()
   const { count } = await sb.from("penerimaan").select("id", { count: "exact", head: true }).eq("status", "draft")
+  return count ?? 0
+}
+
+export async function countDraftAndVerified(): Promise<number> {
+  await requireRole(["ADMIN"])
+  const sb = await createClient()
+  const { count } = await sb
+    .from("penerimaan")
+    .select("id", { count: "exact", head: true })
+    .in("status", ["draft", "verified"])
   return count ?? 0
 }
 

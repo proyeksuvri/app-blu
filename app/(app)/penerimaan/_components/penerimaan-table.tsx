@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 import { PenerimaanStatusBadge } from "@/components/penerimaan-status-badge"
 import { EmptyState } from "@/components/empty-state"
 import { toast } from "sonner"
-import { bulkVerifyPenerimaan, bulkDeletePenerimaan, verifyAllDraft, exportPenerimaan } from "@/app/actions/penerimaan"
+import { bulkVerifyPenerimaan, bulkDeletePenerimaan, verifyAllDraft, exportPenerimaan, deleteAllPenerimaan } from "@/app/actions/penerimaan"
 
 const rupiah = (n: number) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n)
@@ -56,14 +56,16 @@ function SortHead({ label, col, sort, order }: { label: string; col: SortKey; so
   )
 }
 
-export function PenerimaanTable({ data, isAdmin, sort, order, totalDraft, filter }: {
+export function PenerimaanTable({ data, isAdmin, sort, order, totalDraft, totalDeletable, filter }: {
   data: Row[]
   isAdmin: boolean
   sort: SortKey
   order: "asc" | "desc"
   totalDraft?: number
+  totalDeletable?: number
   filter?: Record<string, string>
 }) {
+  const router = useRouter()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [pending, startTransition] = useTransition()
 
@@ -103,6 +105,7 @@ export function PenerimaanTable({ data, isAdmin, sort, order, totalDraft, filter
         toast.success(`${berhasil} transaksi berhasil diverifikasi`)
       }
       setSelected(new Set())
+      router.refresh()
     })
   }
 
@@ -122,7 +125,7 @@ export function PenerimaanTable({ data, isAdmin, sort, order, totalDraft, filter
     const XLSX = await import("xlsx")
     const wb = XLSX.utils.book_new()
     const ws = XLSX.utils.json_to_sheet(result.rows)
-    ws["!cols"] = [14, 12, 20, 20, 20, 18, 16, 16, 18, 24, 12, 12, 20].map((wch) => ({ wch }))
+    ws["!cols"] = [14, 12, 20, 20, 20, 20, 18, 16, 16, 18, 24, 12, 12, 20].map((wch) => ({ wch }))
     XLSX.utils.book_append_sheet(wb, ws, "Penerimaan")
     const label = statuses.length === 1 ? `-${statuses[0]}` : ""
     XLSX.writeFile(wb, `penerimaan${label}-${new Date().toISOString().slice(0, 10)}.xlsx`)
@@ -135,6 +138,28 @@ export function PenerimaanTable({ data, isAdmin, sort, order, totalDraft, filter
       if (!result.ok) { toast.error(result.pesan); return }
       toast.success(`${result.data.berhasil} transaksi berhasil diverifikasi`)
       setSelected(new Set())
+      router.refresh()
+    })
+  }
+
+  function handleDeleteAll() {
+    const total = totalDeletable ?? 0
+    if (total <= 0) {
+      toast.info("Tidak ada transaksi draft atau terverifikasi untuk dihapus")
+      return
+    }
+
+    const confirmation = window.prompt(
+      `Tindakan ini akan menghapus permanen ${total} transaksi draft dan terverifikasi. Ketik HAPUS untuk melanjutkan.`
+    )
+    if (confirmation !== "HAPUS") return
+
+    startTransition(async () => {
+      const result = await deleteAllPenerimaan()
+      if (!result.ok) { toast.error(result.pesan); return }
+      toast.success(`${result.data.berhasil} transaksi berhasil dihapus`)
+      setSelected(new Set())
+      router.refresh()
     })
   }
 
@@ -145,10 +170,9 @@ export function PenerimaanTable({ data, isAdmin, sort, order, totalDraft, filter
       if (!result.ok) { toast.error(result.pesan); return }
       toast.success(`${result.data.berhasil} transaksi dihapus`)
       setSelected(new Set())
+      router.refresh()
     })
   }
-
-  if (data.length === 0) return <EmptyState message="Belum ada transaksi penerimaan" />
 
   return (
     <div className="flex flex-col gap-3">
@@ -165,17 +189,32 @@ export function PenerimaanTable({ data, isAdmin, sort, order, totalDraft, filter
         </Button>
         {isAdmin && totalDraft != null && totalDraft > 0 && (
           <Button
-            variant="outline"
+            variant="default"
             size="sm"
             onClick={handleVerifyAll}
             disabled={pending}
-            className="gap-1.5 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
+            className="gap-1.5"
           >
             <CheckCheck className="h-3.5 w-3.5" />
             {pending ? "Memverifikasi..." : `Verifikasi Semua Draft (${totalDraft})`}
           </Button>
         )}
+        {isAdmin && totalDeletable != null && totalDeletable > 0 && (
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={handleDeleteAll}
+            disabled={pending}
+            className="gap-1.5"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            {pending ? "Menghapus..." : `Hapus Semua (${totalDeletable})`}
+          </Button>
+        )}
       </div>
+      {data.length === 0 ? (
+        <EmptyState message="Belum ada transaksi penerimaan" />
+      ) : (
       <Card className="overflow-hidden p-0">
         <CardContent className="p-0">
         <Table>
@@ -242,6 +281,7 @@ export function PenerimaanTable({ data, isAdmin, sort, order, totalDraft, filter
         </Table>
         </CardContent>
       </Card>
+      )}
 
       {/* Floating bulk action bar */}
       {selected.size > 0 && (
@@ -271,10 +311,10 @@ export function PenerimaanTable({ data, isAdmin, sort, order, totalDraft, filter
           )}
           <Button
             size="sm"
-            variant="outline"
+            variant="destructive"
             onClick={handleBulkDelete}
             disabled={pending}
-            className="gap-1.5 border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-400"
+            className="gap-1.5"
           >
             <Trash2 className="h-3.5 w-3.5" />
             {pending ? "Menghapus..." : `Hapus (${selected.size})`}

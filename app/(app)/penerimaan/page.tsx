@@ -2,7 +2,7 @@ import { Suspense } from "react"
 import Link from "next/link"
 import { getCurrentProfile } from "@/lib/session"
 import { redirect } from "next/navigation"
-import { listPenerimaan, countDraft } from "@/app/actions/penerimaan"
+import { listPenerimaan, countDraft, countDraftAndVerified } from "@/app/actions/penerimaan"
 import { listJenis } from "@/app/actions/master"
 import { PageHeader } from "@/components/page-header"
 import { Plus } from "lucide-react"
@@ -14,7 +14,7 @@ import { PenerimaanPagination } from "./_components/penerimaan-pagination"
 export default async function PenerimaanPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; jenis_id?: string; page?: string; sort?: string; order?: string }>
+  searchParams: Promise<{ status?: string; jenis_id?: string; page?: string; limit?: string; sort?: string; order?: string }>
 }) {
   const profile = await getCurrentProfile()
   if (!profile) redirect("/")
@@ -24,6 +24,7 @@ export default async function PenerimaanPage({
     ? params.sort : "tanggal_terima") as "tanggal_terima" | "jumlah" | "nomor_bukti"
   const order = params.order === "asc" ? "asc" : "desc"
   const currentPage = params.page ? Math.max(1, parseInt(params.page)) : 1
+  const pageSize = [25, 50, 100].includes(Number(params.limit)) ? Number(params.limit) : 25
 
   const statuses = (params.status ?? "").split(",").filter(Boolean)
   const jenisIds = (params.jenis_id ?? "").split(",").filter(Boolean)
@@ -31,16 +32,18 @@ export default async function PenerimaanPage({
   const isOperator = profile.role.kode === "OPERATOR"
   const isAdmin = profile.role.kode === "ADMIN"
 
-  const [{ data, count }, jenisList, totalDraft] = await Promise.all([
+  const [{ data, count }, jenisList, totalDraft, totalDeletable] = await Promise.all([
     listPenerimaan({
       statuses: statuses.length ? statuses : undefined,
       jenis_ids: jenisIds.length ? jenisIds : undefined,
       page: currentPage,
+      limit: pageSize,
       sort,
       order,
     }),
     listJenis(),
     isAdmin ? countDraft() : Promise.resolve(0),
+    isAdmin ? countDraftAndVerified() : Promise.resolve(0),
   ])
 
   const jenisOptions = jenisList.map((j) => ({ value: j.id, label: j.nama }))
@@ -71,12 +74,13 @@ export default async function PenerimaanPage({
           sort={sort}
           order={order}
           totalDraft={totalDraft}
+          totalDeletable={totalDeletable}
           filter={{ status: params.status ?? "", jenis_id: params.jenis_id ?? "" }}
         />
       </Suspense>
 
       <Suspense>
-        <PenerimaanPagination count={count} page={currentPage} pageSize={20} />
+        <PenerimaanPagination count={count} page={currentPage} pageSize={pageSize} />
       </Suspense>
     </div>
   )

@@ -5,6 +5,10 @@ import { getCurrentProfile } from "@/lib/session"
 import { getRedis } from "@/lib/redis"
 
 export type DashboardStats = {
+  periode: {
+    bulan: string
+    label: string
+  }
   totalPenerimaanBulanIni: number
   totalPenerimaanVerifiedBulanIni: number
   totalPenerimaanDraftBulanIni: number
@@ -20,7 +24,6 @@ export type DashboardStats = {
     draftTotal: number
     draftCount: number
   }
-  chartData: { tgl: string; label: string; verified: number; draft: number }[]
   monthlyData: { key: string; label: string; total: number }[]
   terbaru: {
     id: string
@@ -36,12 +39,46 @@ export type DashboardStats = {
   unitNama: string | null
 }
 
-export async function getDashboardStats(): Promise<DashboardStats | null> {
+function parseDashboardMonth(month?: string) {
+  const now = new Date()
+  const match = month?.match(/^(\d{4})-(\d{2})$/)
+  const year = match ? Number(match[1]) : now.getFullYear()
+  const monthIndex = match ? Number(match[2]) - 1 : now.getMonth()
+  const isValidMonth = monthIndex >= 0 && monthIndex <= 11
+  const selected = new Date(isValidMonth ? year : now.getFullYear(), isValidMonth ? monthIndex : now.getMonth(), 1)
+  const selectedYear = selected.getFullYear()
+  const selectedMonth = selected.getMonth()
+  const bulan = `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}`
+  const awal = `${bulan}-01`
+  const isCurrentMonth = selectedYear === now.getFullYear() && selectedMonth === now.getMonth()
+  const lastDay = new Date(selectedYear, selectedMonth + 1, 0).getDate()
+  const akhir = isCurrentMonth
+    ? now.toISOString().split("T")[0]
+    : `${bulan}-${String(lastDay).padStart(2, "0")}`
+
+  const previous = new Date(selectedYear, selectedMonth - 1, 1)
+  const previousYear = previous.getFullYear()
+  const previousMonth = previous.getMonth()
+  const previousKey = `${previousYear}-${String(previousMonth + 1).padStart(2, "0")}`
+  const previousLastDay = new Date(previousYear, previousMonth + 1, 0).getDate()
+
+  return {
+    bulan,
+    label: selected.toLocaleDateString("id-ID", { month: "long", year: "numeric" }),
+    awal,
+    akhir,
+    awalLalu: `${previousKey}-01`,
+    akhirLalu: `${previousKey}-${String(previousLastDay).padStart(2, "0")}`,
+  }
+}
+
+export async function getDashboardStats(month?: string): Promise<DashboardStats | null> {
   const profile = await getCurrentProfile()
   if (!profile) return null
 
+  const periode = parseDashboardMonth(month)
   const redis = getRedis()
-  const cacheKey = `dashboard:stats:${profile.role.kode}:${profile.unit_kerja_id ?? "all"}`
+  const cacheKey = `dashboard:stats:${profile.role.kode}:${profile.unit_kerja_id ?? "all"}:${periode.bulan}`
   if (redis) {
     const cached = await redis.get<DashboardStats>(cacheKey)
     if (cached != null) return cached
@@ -49,25 +86,15 @@ export async function getDashboardStats(): Promise<DashboardStats | null> {
 
   const sb = await createClient()
   const now = new Date()
-  const tglAwal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`
   const tglAkhir = now.toISOString().split("T")[0]
-  const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-  const tglAwalLalu = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, "0")}-01`
-  const lastDayPrev = new Date(now.getFullYear(), now.getMonth(), 0).getDate()
-  const tglAkhirLalu = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, "0")}-${String(lastDayPrev).padStart(2, "0")}`
-
-  let baseQ = sb.from("penerimaan").select("jumlah, status, tanggal_terima, created_at")
-  if (profile.role.kode === "OPERATOR" && profile.unit_kerja_id) {
-    baseQ = baseQ.eq("unit_kerja_id", profile.unit_kerja_id) as typeof baseQ
-  }
 
   const [pipelineRes, bulanRes, bulanLaluRes, voidRes, draftRes, hariIniRes, terbaruRes] = await Promise.all([
-    // Total pipeline bulan ini (draft + verified)
+    // Total pipeline bulan terpilih (draft + verified)
     sb.from("penerimaan")
       .select("jumlah, status")
       .in("status", ["draft", "verified"])
-      .gte("tanggal_terima", tglAwal)
-      .lte("tanggal_terima", tglAkhir)
+      .gte("tanggal_terima", periode.awal)
+      .lte("tanggal_terima", periode.akhir)
       .then(({ data }) => {
         const rows = data ?? []
         return {
@@ -78,38 +105,40 @@ export async function getDashboardStats(): Promise<DashboardStats | null> {
       }),
 
 
-    // Total verified bulan ini
+    // Total verified bulan terpilih
     sb.from("penerimaan")
       .select("jumlah")
       .eq("status", "verified")
-      .gte("tanggal_terima", tglAwal)
-      .lte("tanggal_terima", tglAkhir)
+      .gte("tanggal_terima", periode.awal)
+      .lte("tanggal_terima", periode.akhir)
       .then(({ data }) =>
         (data ?? []).reduce((s, r) => s + Number(r.jumlah), 0)
       ),
 
-    // Total verified bulan lalu
+    // Total verified bulan sebelumnya
     sb.from("penerimaan")
       .select("jumlah")
       .eq("status", "verified")
-      .gte("tanggal_terima", tglAwalLalu)
-      .lte("tanggal_terima", tglAkhirLalu)
+      .gte("tanggal_terima", periode.awalLalu)
+      .lte("tanggal_terima", periode.akhirLalu)
       .then(({ data }) =>
         (data ?? []).reduce((s, r) => s + Number(r.jumlah), 0)
       ),
 
-    // Void bulan ini
+    // Void bulan terpilih
     sb.from("penerimaan")
       .select("id", { count: "exact", head: true })
       .eq("status", "void")
-      .gte("tanggal_terima", tglAwal)
-      .lte("tanggal_terima", tglAkhir)
+      .gte("tanggal_terima", periode.awal)
+      .lte("tanggal_terima", periode.akhir)
       .then(({ count }) => count ?? 0),
 
-    // Draft menunggu verifikasi
+    // Draft menunggu verifikasi bulan terpilih
     sb.from("penerimaan")
       .select("id", { count: "exact", head: true })
       .eq("status", "draft")
+      .gte("tanggal_terima", periode.awal)
+      .lte("tanggal_terima", periode.akhir)
       .then(({ count }) => count ?? 0),
 
     // Transaksi hari ini
@@ -145,34 +174,6 @@ export async function getDashboardStats(): Promise<DashboardStats | null> {
       .then(({ data }) => data ?? []),
   ])
 
-  // 7-day chart data
-  const days: { tgl: string; label: string }[] = []
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(now)
-    d.setDate(d.getDate() - i)
-    const tgl = d.toISOString().split("T")[0]
-    const label = d.toLocaleDateString("id-ID", { weekday: "short", day: "numeric" })
-    days.push({ tgl, label })
-  }
-  const tgl7Awal = days[0].tgl
-
-  const chartRaw = await sb.from("penerimaan")
-    .select("tanggal_terima, jumlah, status")
-    .gte("tanggal_terima", tgl7Awal)
-    .lte("tanggal_terima", tglAkhir)
-    .in("status", ["draft", "verified"])
-    .then(({ data }) => data ?? [])
-
-  const chartData = days.map(({ tgl, label }) => {
-    const rows = chartRaw.filter((r) => r.tanggal_terima === tgl)
-    return {
-      tgl,
-      label,
-      verified: rows.filter((r) => r.status === "verified").reduce((s, r) => s + Number(r.jumlah), 0),
-      draft: rows.filter((r) => r.status === "draft").reduce((s, r) => s + Number(r.jumlah), 0),
-    }
-  })
-
   // 12-month trend data
   const months: { key: string; label: string; awal: string; akhir: string }[] = []
   for (let i = 11; i >= 0; i--) {
@@ -201,6 +202,10 @@ export async function getDashboardStats(): Promise<DashboardStats | null> {
   })
 
   const result = {
+    periode: {
+      bulan: periode.bulan,
+      label: periode.label,
+    },
     totalPenerimaanBulanIni:        pipelineRes.total,
     totalPenerimaanVerifiedBulanIni: pipelineRes.verifiedCount,
     totalPenerimaanDraftBulanIni:    pipelineRes.draftCount,
@@ -209,7 +214,6 @@ export async function getDashboardStats(): Promise<DashboardStats | null> {
     voidBulanIni: voidRes,
     draftCount: draftRes,
     hariIni: hariIniRes,
-    chartData,
     monthlyData,
     terbaru: terbaruRes.map((r) => ({
       id: r.id,

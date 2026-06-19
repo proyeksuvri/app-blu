@@ -11,13 +11,13 @@ import { toast } from "sonner"
 import { parseImportData, commitImport, type ImportRow, type ImportPreviewRow } from "@/app/actions/import-penerimaan"
 
 const TEMPLATE_HEADERS = [
-  "tanggal_transaksi", "kode_jenis", "kode_sub", "kode_unit",
+  "tanggal_transaksi", "kode_kategori", "kode_jenis", "kode_sub", "kode_unit",
   "kode_rekening", "kode_metode", "jumlah", "nomor_bukti", "uraian"
 ]
 
 const TEMPLATE_SAMPLE = [
-  ["2026-05-01", "UKT", "UKT-REG", "FSH", "BSI", "TRANSFER_BANK", "5000000", "REF001", "UKT Semester Ganjil"],
-  ["2026-05-01", "WSD", "", "FSH", "BSI", "TUNAI", "2500000", "", "Biaya Wisuda"],
+  ["2026-05-01", "KAT-01", "UKT", "UKT-REG", "FSH", "BSI", "TRANSFER_BANK", "5000000", "REF001", "UKT Semester Ganjil"],
+  ["2026-05-01", "KAT-01", "WSD", "", "FSH", "BSI", "TUNAI", "2500000", "", "Biaya Wisuda"],
 ]
 
 async function downloadTemplate() {
@@ -63,6 +63,7 @@ export function ImportClient() {
         const importRows: ImportRow[] = rows.map((r, i) => ({
           baris: i + 2,
           tanggal_terima: formatDate(r["tanggal_transaksi"] ?? r["tanggal_terima"]),
+          kode_kategori: String(r["kode_kategori"] ?? r["kategori_pendapatan"] ?? "").toUpperCase(),
           kode_jenis: String(r["kode_jenis"] ?? "").toUpperCase(),
           kode_sub: r["kode_sub"] ? String(r["kode_sub"]).toUpperCase() : undefined,
           kode_unit: String(r["kode_unit"] ?? "").toUpperCase(),
@@ -112,7 +113,7 @@ export function ImportClient() {
   if (step === "done") {
     return (
       <div className="flex flex-col items-center gap-4 py-16 text-center">
-        <CheckCircle2 className="h-12 w-12 text-emerald-500" />
+        <CheckCircle2 className="h-12 w-12 text-primary" />
         <p className="text-lg font-medium text-foreground">Import berhasil</p>
         <p className="text-sm text-muted-foreground">Data tersimpan sebagai draft, siap untuk diverifikasi</p>
         <Button onClick={() => router.push("/penerimaan")}>Lihat Daftar Penerimaan</Button>
@@ -124,7 +125,7 @@ export function ImportClient() {
     return (
       <div className="flex flex-col gap-4">
         <div className="flex items-center gap-4">
-          <Badge className="gap-1.5 border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+          <Badge className="gap-1.5">
             <CheckCircle2 className="h-3 w-3" />{validCount} baris valid
           </Badge>
           {invalidCount > 0 && (
@@ -140,6 +141,7 @@ export function ImportClient() {
               <TableRow className="border-border hover:bg-transparent">
                 <TableHead className="text-muted-foreground text-xs w-12">Baris</TableHead>
                 <TableHead className="text-muted-foreground text-xs">Tgl. Transaksi</TableHead>
+                <TableHead className="text-muted-foreground text-xs">Kategori</TableHead>
                 <TableHead className="text-muted-foreground text-xs">Jenis</TableHead>
                 <TableHead className="text-muted-foreground text-xs">Unit</TableHead>
                 <TableHead className="text-muted-foreground text-xs text-right">Jumlah</TableHead>
@@ -152,6 +154,7 @@ export function ImportClient() {
                   className={`border-border/50 ${row.valid ? "hover:bg-muted/20" : "bg-destructive/5"}`}>
                   <TableCell className="text-xs text-muted-foreground py-2">{row.baris}</TableCell>
                   <TableCell className="text-xs text-foreground/70 py-2">{row.tanggal_terima}</TableCell>
+                  <TableCell className="text-xs text-foreground/70 py-2">{row.kode_kategori}</TableCell>
                   <TableCell className="text-xs text-foreground/70 py-2">{row.kode_jenis}</TableCell>
                   <TableCell className="text-xs text-foreground/70 py-2">{row.kode_unit}</TableCell>
                   <TableCell className="text-xs text-foreground/70 py-2 text-right">
@@ -159,7 +162,7 @@ export function ImportClient() {
                   </TableCell>
                   <TableCell className="text-xs py-2">
                     {row.valid ? (
-                      <Badge className="border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                      <Badge>
                         Valid
                       </Badge>
                     ) : (

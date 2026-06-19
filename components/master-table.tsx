@@ -124,7 +124,7 @@ export function MasterTable<T extends MasterRow>({
                           {pending ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
                           ) : row.is_active ? (
-                            <ToggleRight className="h-3.5 w-3.5 text-emerald-500" />
+                            <ToggleRight className="h-3.5 w-3.5 text-primary" />
                           ) : (
                             <ToggleLeft className="h-3.5 w-3.5" />
                           )}

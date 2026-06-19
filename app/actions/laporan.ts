@@ -112,16 +112,24 @@ export async function rekapPerRekening(tglAwal: string, tglAkhir: string) {
   if (diffMs < 0 || diffMs > 366 * 24 * 60 * 60 * 1000) return { byRekening: [], total: 0 }
   const sb = await createClient()
 
-  const { data, error } = await sb
+  const baseQ = sb
     .from("penerimaan")
     .select(`jumlah, rekening:rekening_bank(kode, nama_bank, nama_rekening, nomor_rekening)`)
     .gte("tanggal_terima", tglAwal)
     .lte("tanggal_terima", tglAkhir)
     .eq("status", "verified")
 
-  if (error) return { byRekening: [], total: 0 }
-
-  const rows = data ?? []
+  const BATCH = 1000
+  const rows: { jumlah: number; rekening: unknown }[] = []
+  let offset = 0
+  while (true) {
+    const { data: batch, error } = await baseQ.range(offset, offset + BATCH - 1)
+    if (error) return { byRekening: [], total: 0 }
+    if (!batch || batch.length === 0) break
+    rows.push(...(batch as typeof rows))
+    if (batch.length < BATCH) break
+    offset += BATCH
+  }
   const total = rows.reduce((s, r) => s + Number(r.jumlah), 0)
 
   const byRek: Record<string, {
@@ -154,7 +162,7 @@ export async function rekapBulananFull(tahun: number, bulan: number): Promise<Re
   const tglAkhir = new Date(tahun, bulan, 0).toISOString().split("T")[0]
   const daysInMonth = new Date(tahun, bulan, 0).getDate()
 
-  const { data, error } = await sb
+  const bulananQ = sb
     .from("penerimaan")
     .select(`
       jumlah, tanggal_terima,
@@ -168,9 +176,19 @@ export async function rekapBulananFull(tahun: number, bulan: number): Promise<Re
     .lte("tanggal_terima", tglAkhir)
     .eq("status", "verified")
 
-  if (error || !data?.length) return { ...empty, daysInMonth }
-
-  const rows = data
+  const BATCH2 = 1000
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows: any[] = []
+  let off2 = 0
+  while (true) {
+    const { data: batch, error } = await bulananQ.range(off2, off2 + BATCH2 - 1)
+    if (error) return { ...empty, daysInMonth }
+    if (!batch || batch.length === 0) break
+    rows.push(...batch)
+    if (batch.length < BATCH2) break
+    off2 += BATCH2
+  }
+  if (!rows.length) return { ...empty, daysInMonth }
   const total = rows.reduce((s, r) => s + Number(r.jumlah), 0)
   const count = rows.length
   const pct = (n: number) => total > 0 ? Math.round((n / total) * 1000) / 10 : 0

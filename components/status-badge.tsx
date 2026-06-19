@@ -14,7 +14,7 @@ export function StatusBadge({
       className={cn(
         "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1",
         aktif
-          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-emerald-500/20"
+          ? "bg-primary text-primary-foreground ring-primary/20"
           : "bg-muted/50 text-muted-foreground ring-border"
       )}
     >

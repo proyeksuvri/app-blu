@@ -8,6 +8,7 @@ import { revalidatePath } from "next/cache"
 export type ImportRow = {
   baris: number
   tanggal_terima: string
+  kode_kategori: string
   kode_jenis: string
   kode_sub?: string
   kode_unit: string
@@ -29,7 +30,8 @@ export type ImportPreviewRow = ImportRow & {
 }
 
 type MasterMaps = {
-  jenis: Record<string, string>
+  kategori: Record<string, string>
+  jenis: Record<string, { id: string; kategori_id: string }>
   sub: Record<string, string>
   unit: Record<string, string>
   rek: Record<string, string>
@@ -47,8 +49,9 @@ async function getMasterMaps(): Promise<MasterMaps> {
   }
 
   const sb = await createClient()
-  const [jenis, sub, unit, rekening, metode] = await Promise.all([
-    sb.from("jenis_pendapatan").select("id, kode").eq("is_active", true),
+  const [kategori, jenis, sub, unit, rekening, metode] = await Promise.all([
+    sb.from("kategori_pendapatan").select("id, kode").eq("is_active", true),
+    sb.from("jenis_pendapatan").select("id, kode, kategori_pendapatan_id").eq("is_active", true),
     sb.from("sub_pendapatan").select("id, kode").eq("is_active", true),
     sb.from("unit_kerja").select("id, kode").eq("is_active", true),
     sb.from("rekening_bank").select("id, kode").eq("is_active", true),
@@ -56,11 +59,12 @@ async function getMasterMaps(): Promise<MasterMaps> {
   ])
 
   const maps: MasterMaps = {
-    jenis:  Object.fromEntries((jenis.data   ?? []).map((r) => [r.kode, r.id])),
-    sub:    Object.fromEntries((sub.data     ?? []).map((r) => [r.kode, r.id])),
-    unit:   Object.fromEntries((unit.data    ?? []).map((r) => [r.kode, r.id])),
-    rek:    Object.fromEntries((rekening.data ?? []).map((r) => [r.kode, r.id])),
-    metode: Object.fromEntries((metode.data  ?? []).map((r) => [r.kode, r.id])),
+    kategori: Object.fromEntries((kategori.data ?? []).map((r) => [r.kode, r.id])),
+    jenis:    Object.fromEntries((jenis.data ?? []).map((r) => [r.kode, { id: r.id, kategori_id: r.kategori_pendapatan_id }])),
+    sub:      Object.fromEntries((sub.data     ?? []).map((r) => [r.kode, r.id])),
+    unit:     Object.fromEntries((unit.data    ?? []).map((r) => [r.kode, r.id])),
+    rek:      Object.fromEntries((rekening.data ?? []).map((r) => [r.kode, r.id])),
+    metode:   Object.fromEntries((metode.data  ?? []).map((r) => [r.kode, r.id])),
   }
 
   if (redis) await redis.setex(MASTER_CACHE_KEY, MASTER_CACHE_TTL, maps)
@@ -69,7 +73,7 @@ async function getMasterMaps(): Promise<MasterMaps> {
 
 export async function parseImportData(rows: ImportRow[]): Promise<ImportPreviewRow[]> {
   await requireRole(["OPERATOR", "ADMIN"])
-  const { jenis, sub, unit, rek, metode } = await getMasterMaps()
+  const { kategori, jenis, sub, unit, rek, metode } = await getMasterMaps()
 
   const ISO_DATE_RE = /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/
 
@@ -83,13 +87,19 @@ export async function parseImportData(rows: ImportRow[]): Promise<ImportPreviewR
       errors.push("jumlah harus angka positif")
     }
 
-    const jenis_id    = jenis[row.kode_jenis?.toUpperCase()]
+    const kategori_id = kategori[row.kode_kategori?.toUpperCase()]
+    const jenis_row   = jenis[row.kode_jenis?.toUpperCase()]
+    const jenis_id    = jenis_row?.id
     const sub_id      = row.kode_sub ? sub[row.kode_sub.toUpperCase()] : undefined
     const unit_id     = unit[row.kode_unit?.toUpperCase()]
     const rekening_id = rek[row.kode_rekening?.toUpperCase()]
     const metode_id   = metode[row.kode_metode?.toUpperCase()]
 
+    if (!kategori_id) errors.push(`kode_kategori "${row.kode_kategori}" tidak ditemukan`)
     if (!jenis_id)    errors.push(`kode_jenis "${row.kode_jenis}" tidak ditemukan`)
+    if (kategori_id && jenis_row && jenis_row.kategori_id !== kategori_id) {
+      errors.push(`kode_jenis "${row.kode_jenis}" tidak sesuai kode_kategori "${row.kode_kategori}"`)
+    }
     if (row.kode_sub && !sub_id) errors.push(`kode_sub "${row.kode_sub}" tidak ditemukan`)
     if (!unit_id)     errors.push(`kode_unit "${row.kode_unit}" tidak ditemukan`)
     if (!rekening_id) errors.push(`kode_rekening "${row.kode_rekening}" tidak ditemukan`)

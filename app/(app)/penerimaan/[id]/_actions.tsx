@@ -67,22 +67,19 @@ export function PenerimaanActions({ id, status, isAdmin, canEdit, isOwner }: Pro
       )}
 
       {status === "draft" && isAdmin && (
-        <Button size="sm" onClick={handleVerify} disabled={pending}
-          className="bg-green-600 hover:bg-green-500 text-white">
+        <Button size="sm" onClick={handleVerify} disabled={pending}>
           {pending ? "Memproses..." : "Verifikasi"}
         </Button>
       )}
 
       {status === "verified" && isAdmin && (
-        <Button variant="outline" size="sm" onClick={() => setVoidOpen(true)}
-          className="border-red-500/30 text-red-400 hover:bg-red-500/10">
+        <Button variant="destructive" size="sm" onClick={() => setVoidOpen(true)}>
           Void
         </Button>
       )}
 
       {(status === "draft" ? (isOwner || isAdmin) : isAdmin) && (
-        <Button variant="ghost" size="sm" onClick={handleDelete} disabled={pending}
-          className="text-red-400/70 hover:text-red-400 hover:bg-red-500/10">
+        <Button variant="destructive" size="sm" onClick={handleDelete} disabled={pending}>
           Hapus
         </Button>
       )}
@@ -95,7 +92,7 @@ export function PenerimaanActions({ id, status, isAdmin, canEdit, isOwner }: Pro
           </DialogHeader>
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
-              <Label className="text-foreground/60 text-xs">Alasan Pembatalan <span className="text-red-400">*</span></Label>
+              <Label className="text-foreground/60 text-xs">Alasan Pembatalan <span className="text-destructive">*</span></Label>
               <Textarea
                 value={alasan}
                 onChange={(e) => setAlasan(e.target.value)}
@@ -104,8 +101,7 @@ export function PenerimaanActions({ id, status, isAdmin, canEdit, isOwner }: Pro
                 className="bg-muted/50 border-border text-foreground resize-none"
               />
             </div>
-            <Button onClick={handleVoid} disabled={pending || !alasan.trim()}
-              className="bg-red-600 hover:bg-red-500 w-full">
+            <Button onClick={handleVoid} disabled={pending || !alasan.trim()} variant="destructive" className="w-full">
               {pending ? "Memproses..." : "Konfirmasi Void"}
             </Button>
           </div>

@@ -28,7 +28,7 @@ export const CurrencyInput = forwardRef<HTMLInputElement, Props>(
 
     return (
       <div className="relative">
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-white/30 select-none">
+        <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 select-none text-sm text-muted-foreground">
           Rp
         </span>
         <Input
