@@ -5,7 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   Building2, LayoutDashboard, BarChart3,
-  Users, LogOut, ChevronRight, Banknote, BookOpen, Search,
+  Users, LogOut, ChevronRight, Banknote, BookOpen, BookMarked, Search,
 } from "lucide-react"
 import { cn, getInitials } from "@/lib/utils"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -102,10 +102,14 @@ function getMenuItems(role: string): MenuItem[] {
   const pimpinanMenu: MenuItem[] = [
     { label: "Laporan", href: "/laporan", icon: BarChart3 },
   ]
-  if (role === "ADMIN") return [...common, ...adminMenu]
-  if (role === "OPERATOR") return [...common, ...operatorMenu]
-  if (role === "PIMPINAN") return [...common, ...pimpinanMenu]
-  return common
+  const bottomMenu: MenuItem[] = [
+    { label: "Panduan & Aturan", href: "/panduan", icon: BookMarked },
+  ]
+  
+  if (role === "ADMIN") return [...common, ...adminMenu, ...bottomMenu]
+  if (role === "OPERATOR") return [...common, ...operatorMenu, ...bottomMenu]
+  if (role === "PIMPINAN") return [...common, ...pimpinanMenu, ...bottomMenu]
+  return [...common, ...bottomMenu]
 }
 
 const SEGMENT_LABELS: Record<string, string> = {
@@ -122,6 +126,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   "jenis-pemindahan-kas": "Jenis Pemindahan Kas",
   pengguna: "Pengguna",
   laporan: "Laporan",
+  panduan: "Panduan & Aturan",
 }
 
 function isUUID(s: string) {

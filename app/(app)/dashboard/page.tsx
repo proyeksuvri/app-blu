@@ -121,70 +121,128 @@ export default async function DashboardPage({
         </div>
       )}
 
-      {/* Tren 12 bulan */}
-      {(isAdmin || isPimpinan) && (
-        <MonthlyChart data={stats.monthlyData} />
-      )}
+      {/* Tren 12 bulan + Transaksi terbaru */}
+      {(isAdmin || isPimpinan) ? (
+        <div className="grid gap-6 xl:grid-cols-[1.75fr_1.1fr]">
+          <Card className="overflow-hidden p-0">
+            <CardHeader className="border-b px-5 py-3.5">
+              <CardTitle className="text-sm font-medium text-foreground/60">Transaksi Terbaru</CardTitle>
+              <CardAction>
+                <Link href="/penerimaan" className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground/70 transition-colors py-1.5 -my-1.5 px-1 -mx-1">
+                  Lihat semua <ArrowRight className="h-3 w-3" />
+                </Link>
+              </CardAction>
+            </CardHeader>
 
-      {/* Transaksi terbaru */}
-      <Card className="overflow-hidden p-0">
-        <CardHeader className="border-b px-5 py-3.5">
-          <CardTitle className="text-sm font-medium text-foreground/60">Transaksi Terbaru</CardTitle>
-          <CardAction>
-            <Link href="/penerimaan" className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground/70 transition-colors py-1.5 -my-1.5 px-1 -mx-1">
-              Lihat semua <ArrowRight className="h-3 w-3" />
-            </Link>
-          </CardAction>
-        </CardHeader>
+            <CardContent className="p-0">
+              {stats.terbaru.length === 0 ? (
+                <div className="px-5 py-8 text-center text-sm text-muted-foreground/70">
+                  Belum ada transaksi
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-border hover:bg-transparent">
+                      <TableHead className="text-muted-foreground text-xs">Nomor Bukti</TableHead>
+                      <TableHead className="text-muted-foreground text-xs">Tanggal</TableHead>
+                      <TableHead className="text-muted-foreground text-xs">Jenis</TableHead>
+                      <TableHead className="text-muted-foreground text-xs">Unit</TableHead>
+                      <TableHead className="text-muted-foreground text-xs text-right">Jumlah</TableHead>
+                      <TableHead className="text-muted-foreground text-xs">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {stats.terbaru.map((row) => (
+                      <TableRow key={row.id} className="border-border/50 hover:bg-muted/20">
+                        <TableCell className="py-3">
+                          <Link href={`/penerimaan/${row.id}`} className="text-sm font-mono text-primary hover:underline">
+                            {row.nomor_bukti}
+                          </Link>
+                        </TableCell>
+                        <TableCell className="text-sm text-foreground/60 py-3">
+                          {format(new Date(row.tanggal_terima), "dd MMM yyyy", { locale: id })}
+                        </TableCell>
+                        <TableCell className="text-sm text-foreground/70 py-3">
+                          {row.jenis?.nama ?? "â€”"}
+                        </TableCell>
+                        <TableCell className="text-sm text-foreground/50 py-3">
+                          {row.unit?.kode ?? "â€”"}
+                        </TableCell>
+                        <TableCell className="text-sm text-foreground/80 py-3 text-right font-medium">
+                          {rupiah(row.jumlah)}
+                        </TableCell>
+                        <TableCell className="py-3">
+                          <PenerimaanStatusBadge status={row.status as "draft" | "verified" | "void"} />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
 
-        <CardContent className="p-0">
-          {stats.terbaru.length === 0 ? (
-            <div className="px-5 py-8 text-center text-sm text-muted-foreground/70">
-              Belum ada transaksi
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="border-border hover:bg-transparent">
-                  <TableHead className="text-muted-foreground text-xs">Nomor Bukti</TableHead>
-                  <TableHead className="text-muted-foreground text-xs">Tanggal</TableHead>
-                  <TableHead className="text-muted-foreground text-xs">Jenis</TableHead>
-                  <TableHead className="text-muted-foreground text-xs">Unit</TableHead>
-                  <TableHead className="text-muted-foreground text-xs text-right">Jumlah</TableHead>
-                  <TableHead className="text-muted-foreground text-xs">Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {stats.terbaru.map((row) => (
-                  <TableRow key={row.id} className="border-border/50 hover:bg-muted/20">
-                    <TableCell className="py-3">
-                      <Link href={`/penerimaan/${row.id}`} className="text-sm font-mono text-primary hover:underline">
-                        {row.nomor_bukti}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="text-sm text-foreground/60 py-3">
-                      {format(new Date(row.tanggal_terima), "dd MMM yyyy", { locale: id })}
-                    </TableCell>
-                    <TableCell className="text-sm text-foreground/70 py-3">
-                      {row.jenis?.nama ?? "â€”"}
-                    </TableCell>
-                    <TableCell className="text-sm text-foreground/50 py-3">
-                      {row.unit?.kode ?? "â€”"}
-                    </TableCell>
-                    <TableCell className="text-sm text-foreground/80 py-3 text-right font-medium">
-                      {rupiah(row.jumlah)}
-                    </TableCell>
-                    <TableCell className="py-3">
-                      <PenerimaanStatusBadge status={row.status as "draft" | "verified" | "void"} />
-                    </TableCell>
+          <MonthlyChart data={stats.monthlyData} />
+        </div>
+      ) : (
+        <Card className="overflow-hidden p-0">
+          <CardHeader className="border-b px-5 py-3.5">
+            <CardTitle className="text-sm font-medium text-foreground/60">Transaksi Terbaru</CardTitle>
+            <CardAction>
+              <Link href="/penerimaan" className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground/70 transition-colors py-1.5 -my-1.5 px-1 -mx-1">
+                Lihat semua <ArrowRight className="h-3 w-3" />
+              </Link>
+            </CardAction>
+          </CardHeader>
+
+          <CardContent className="p-0">
+            {stats.terbaru.length === 0 ? (
+              <div className="px-5 py-8 text-center text-sm text-muted-foreground/70">
+                Belum ada transaksi
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-border hover:bg-transparent">
+                    <TableHead className="text-muted-foreground text-xs">Nomor Bukti</TableHead>
+                    <TableHead className="text-muted-foreground text-xs">Tanggal</TableHead>
+                    <TableHead className="text-muted-foreground text-xs">Jenis</TableHead>
+                    <TableHead className="text-muted-foreground text-xs">Unit</TableHead>
+                    <TableHead className="text-muted-foreground text-xs text-right">Jumlah</TableHead>
+                    <TableHead className="text-muted-foreground text-xs">Status</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-
+                </TableHeader>
+                <TableBody>
+                  {stats.terbaru.map((row) => (
+                    <TableRow key={row.id} className="border-border/50 hover:bg-muted/20">
+                      <TableCell className="py-3">
+                        <Link href={`/penerimaan/${row.id}`} className="text-sm font-mono text-primary hover:underline">
+                          {row.nomor_bukti}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="text-sm text-foreground/60 py-3">
+                        {format(new Date(row.tanggal_terima), "dd MMM yyyy", { locale: id })}
+                      </TableCell>
+                      <TableCell className="text-sm text-foreground/70 py-3">
+                        {row.jenis?.nama ?? "â€”"}
+                      </TableCell>
+                      <TableCell className="text-sm text-foreground/50 py-3">
+                        {row.unit?.kode ?? "â€”"}
+                      </TableCell>
+                      <TableCell className="text-sm text-foreground/80 py-3 text-right font-medium">
+                        {rupiah(row.jumlah)}
+                      </TableCell>
+                      <TableCell className="py-3">
+                        <PenerimaanStatusBadge status={row.status as "draft" | "verified" | "void"} />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }
