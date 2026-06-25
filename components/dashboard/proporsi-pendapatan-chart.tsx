@@ -41,17 +41,17 @@ function useIsDark() {
 
 // Custom label rendered inside the arc — shows percentage
 interface LabelProps {
-  cx: number
-  cy: number
-  midAngle: number
-  innerRadius: number
-  outerRadius: number
-  percent: number
-  index: number
+  cx?: number
+  cy?: number
+  midAngle?: number
+  innerRadius?: number
+  outerRadius?: number
+  percent?: number
+  index?: number
   isDark: boolean
 }
 
-function CustomLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent, index, isDark }: LabelProps) {
+function CustomLabel({ cx = 0, cy = 0, midAngle = 0, innerRadius = 0, outerRadius = 0, percent = 0, index = 0, isDark }: LabelProps) {
   if (percent < 0.05) return null // skip tiny slices
   const RADIAN = Math.PI / 180
   // place label outside the arc
