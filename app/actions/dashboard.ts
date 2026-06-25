@@ -13,6 +13,8 @@ export type DashboardStats = {
   totalPenerimaanVerifiedBulanIni: number
   totalPenerimaanDraftBulanIni: number
   totalBulanIni: number
+  rataRataHarianBulanIni: number
+  hariAktifBulanIni: number
   totalBulanLalu: number
   voidBulanIni: number
   draftCount: number
@@ -107,13 +109,17 @@ export async function getDashboardStats(month?: string): Promise<DashboardStats 
 
     // Total verified bulan terpilih
     sb.from("penerimaan")
-      .select("jumlah")
+      .select("jumlah, tanggal_terima")
       .eq("status", "verified")
       .gte("tanggal_terima", periode.awal)
       .lte("tanggal_terima", periode.akhir)
-      .then(({ data }) =>
-        (data ?? []).reduce((s, r) => s + Number(r.jumlah), 0)
-      ),
+      .then(({ data }) => {
+        const rows = data ?? []
+        const total = rows.reduce((s, r) => s + Number(r.jumlah), 0)
+        const uniqueDays = new Set(rows.map(r => r.tanggal_terima)).size
+        const average = uniqueDays > 0 ? total / uniqueDays : 0
+        return { total, average, uniqueDays }
+      }),
 
     // Total verified bulan sebelumnya
     sb.from("penerimaan")
@@ -209,7 +215,9 @@ export async function getDashboardStats(month?: string): Promise<DashboardStats 
     totalPenerimaanBulanIni:        pipelineRes.total,
     totalPenerimaanVerifiedBulanIni: pipelineRes.verifiedCount,
     totalPenerimaanDraftBulanIni:    pipelineRes.draftCount,
-    totalBulanIni: bulanRes,
+    totalBulanIni: bulanRes.total,
+    rataRataHarianBulanIni: bulanRes.average,
+    hariAktifBulanIni: bulanRes.uniqueDays,
     totalBulanLalu: bulanLaluRes,
     voidBulanIni: voidRes,
     draftCount: draftRes,

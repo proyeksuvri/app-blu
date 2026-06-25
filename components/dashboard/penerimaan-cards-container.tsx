@@ -1,0 +1,148 @@
+"use client"
+
+import { useState } from "react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { type PenerimaanFilterType } from "@/app/actions/penerimaan-filtered"
+import { PenerimaanTahunBerjalanCard } from "./penerimaan-tahun-berjalan-card"
+import { CapaianTargetCard } from "./capaian-target-card"
+import { RataRataHarianCard } from "./rata-rata-harian-card"
+import { TrenPendapatanChart } from "./tren-pendapatan-chart"
+import { ProporsiPendapatanChart } from "./proporsi-pendapatan-chart"
+import { cn } from "@/lib/utils"
+
+const MONTHS = [
+  "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+  "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+]
+
+export function PenerimaanCardsContainer({ className }: { className?: string }) {
+  const currentYear = new Date().getFullYear()
+  const currentMonth = new Date().getMonth() + 1 // 1-12
+
+  const [filterType, setFilterType] = useState<PenerimaanFilterType>("bulan")
+  const [filterValue, setFilterValue] = useState<number>(currentMonth)
+  const [year, setYear] = useState<number>(currentYear)
+
+  const renderValueSelect = () => {
+    if (filterType === "bulan") {
+      return (
+        <Select value={String(filterValue)} onValueChange={(v) => setFilterValue(Number(v))}>
+          <SelectTrigger className="w-[130px] h-8 text-xs bg-background">
+            <SelectValue placeholder="Pilih Bulan" />
+          </SelectTrigger>
+          <SelectContent>
+            {MONTHS.map((m, i) => (
+              <SelectItem key={i + 1} value={String(i + 1)} className="text-xs">{m}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )
+    }
+    if (filterType === "triwulan") {
+      return (
+        <Select value={String(filterValue)} onValueChange={(v) => setFilterValue(Number(v))}>
+          <SelectTrigger className="w-[110px] h-8 text-xs bg-background">
+            <SelectValue placeholder="Pilih Triwulan" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="1" className="text-xs">Triwulan 1</SelectItem>
+            <SelectItem value="2" className="text-xs">Triwulan 2</SelectItem>
+            <SelectItem value="3" className="text-xs">Triwulan 3</SelectItem>
+            <SelectItem value="4" className="text-xs">Triwulan 4</SelectItem>
+          </SelectContent>
+        </Select>
+      )
+    }
+    if (filterType === "semester") {
+      return (
+        <Select value={String(filterValue)} onValueChange={(v) => setFilterValue(Number(v))}>
+          <SelectTrigger className="w-[110px] h-8 text-xs bg-background">
+            <SelectValue placeholder="Pilih Semester" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="1" className="text-xs">Semester 1</SelectItem>
+            <SelectItem value="2" className="text-xs">Semester 2</SelectItem>
+          </SelectContent>
+        </Select>
+      )
+    }
+    return null
+  }
+
+  return (
+    <div className={cn("flex flex-col gap-6", className)}>
+      <div className="flex justify-end items-center gap-2 sticky top-0 z-10 bg-background/95 backdrop-blur py-2 -mx-2 px-2">
+        <Select value={filterType} onValueChange={(v) => {
+          if (!v) return;
+          const typeVal = v as PenerimaanFilterType;
+          setFilterType(typeVal)
+          if (typeVal === "bulan") setFilterValue(currentMonth)
+          else if (typeVal === "triwulan") setFilterValue(Math.ceil(currentMonth / 3))
+          else if (typeVal === "semester") setFilterValue(Math.ceil(currentMonth / 6))
+          else if (typeVal === "tahun") setFilterValue(1)
+        }}>
+          <SelectTrigger className="w-[110px] h-8 text-xs bg-background">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="bulan" className="text-xs">Bulan</SelectItem>
+            <SelectItem value="triwulan" className="text-xs">Triwulan</SelectItem>
+            <SelectItem value="semester" className="text-xs">Semester</SelectItem>
+            <SelectItem value="tahun" className="text-xs">Tahun</SelectItem>
+          </SelectContent>
+        </Select>
+        
+        {renderValueSelect()}
+
+        <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
+          <SelectTrigger className="w-[80px] h-8 text-xs bg-background">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {[currentYear, currentYear - 1, currentYear - 2].map((y) => (
+              <SelectItem key={y} value={String(y)} className="text-xs">{y}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <PenerimaanTahunBerjalanCard 
+          filterType={filterType} 
+          filterValue={filterValue} 
+          year={year} 
+          className="h-full" 
+        />
+        <CapaianTargetCard 
+          filterType={filterType} 
+          filterValue={filterValue} 
+          year={year} 
+          className="h-full" 
+        />
+        <RataRataHarianCard
+          filterType={filterType} 
+          filterValue={filterValue} 
+          year={year} 
+          className="h-full" 
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2 flex flex-col">
+          <TrenPendapatanChart 
+            filterType={filterType} 
+            filterValue={filterValue} 
+            year={year} 
+          />
+        </div>
+        <div className="flex flex-col">
+          <ProporsiPendapatanChart 
+            filterType={filterType} 
+            filterValue={filterValue} 
+            year={year} 
+          />
+        </div>
+      </div>
+    </div>
+  )
+}

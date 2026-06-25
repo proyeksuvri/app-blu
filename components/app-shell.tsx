@@ -76,6 +76,13 @@ function getMenuItems(role: string): MenuItem[] {
       ],
     },
     {
+      label: "Pengeluaran", href: "/pengeluaran", icon: Banknote,
+      children: [
+        { label: "Daftar Pengeluaran", href: "/pengeluaran" },
+        { label: "Input Baru", href: "/pengeluaran/baru" },
+      ],
+    },
+    {
       label: "Master Data", href: "/kategori-pendapatan", icon: BookOpen,
       children: [
         { label: "Kategori Pendapatan", href: "/kategori-pendapatan" },
@@ -98,6 +105,13 @@ function getMenuItems(role: string): MenuItem[] {
         { label: "Import Excel/CSV", href: "/penerimaan/import" },
       ],
     },
+    {
+      label: "Pengeluaran", href: "/pengeluaran", icon: Banknote,
+      children: [
+        { label: "Daftar Pengeluaran", href: "/pengeluaran" },
+        { label: "Input Baru", href: "/pengeluaran/baru" },
+      ],
+    },
   ]
   const pimpinanMenu: MenuItem[] = [
     { label: "Laporan", href: "/laporan", icon: BarChart3 },
@@ -115,6 +129,7 @@ function getMenuItems(role: string): MenuItem[] {
 const SEGMENT_LABELS: Record<string, string> = {
   dashboard: "Dashboard",
   penerimaan: "Penerimaan",
+  pengeluaran: "Pengeluaran",
   baru: "Input Baru",
   import: "Import",
   master: "Master Data",
