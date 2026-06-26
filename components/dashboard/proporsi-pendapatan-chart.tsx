@@ -133,8 +133,8 @@ export function ProporsiPendapatanChart({ data, isPending }: ProporsiPendapatanC
               </div>
             </div>
 
-            {/* 2-column legend grid */}
-            <div className="grid grid-cols-2 gap-2">
+            {/* 1-column legend */}
+            <div className="flex flex-col gap-2">
               {mappedData.map((d, i) => {
                 const pct = total > 0 ? ((d.value / total) * 100).toFixed(1) : "0.0"
                 return (
@@ -147,7 +147,7 @@ export function ProporsiPendapatanChart({ data, isPending }: ProporsiPendapatanC
                         className="shrink-0 inline-block w-2 h-2 rounded-full"
                         style={{ backgroundColor: d.fill }}
                       />
-                      <span className="text-xs text-foreground/70 truncate">{d.name}</span>
+                      <span className="text-xs text-foreground/70">{d.name}</span>
                     </div>
                     <span
                       className="text-xs font-bold shrink-0 tabular-nums"
