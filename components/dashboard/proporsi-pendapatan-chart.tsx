@@ -1,10 +1,10 @@
 "use client"
 
-import { useState, useEffect, useTransition } from "react"
+import { useState, useEffect } from "react"
 import { PieChart, Pie, Cell } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "@/components/ui/card"
-import { getPenerimaanFiltered, type PenerimaanFilterType } from "@/app/actions/penerimaan-filtered"
+import { type PenerimaanFilteredResult } from "@/app/actions/penerimaan-filtered"
 import { Skeleton } from "@/components/ui/skeleton"
 
 const rupiah = (n: number) =>
@@ -76,26 +76,12 @@ function CustomLabel({ cx = 0, cy = 0, midAngle = 0, innerRadius = 0, outerRadiu
 }
 
 interface ProporsiPendapatanChartProps {
-  filterType: PenerimaanFilterType
-  filterValue: number
-  year: number
+  data: PenerimaanFilteredResult | null
+  isPending: boolean
 }
 
-export function ProporsiPendapatanChart({ filterType, filterValue, year }: ProporsiPendapatanChartProps) {
-  const [isPending, startTransition] = useTransition()
-  const [data, setData] = useState<{ kategoriBreakdown?: { name: string; value: number }[] } | null>(null)
+export function ProporsiPendapatanChart({ data, isPending }: ProporsiPendapatanChartProps) {
   const isDark = useIsDark()
-
-  useEffect(() => {
-    startTransition(async () => {
-      try {
-        const result = await getPenerimaanFiltered(filterType, filterValue, year)
-        setData(result)
-      } catch (error) {
-        console.error("Failed to fetch filtered penerimaan", error)
-      }
-    })
-  }, [filterType, filterValue, year])
 
   const rawData = data?.kategoriBreakdown || []
   const total = rawData.reduce((s, d) => s + d.value, 0)

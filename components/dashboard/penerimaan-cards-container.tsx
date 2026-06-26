@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useTransition, useEffect, useCallback } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { type PenerimaanFilterType } from "@/app/actions/penerimaan-filtered"
+import { getPenerimaanFiltered, type PenerimaanFilterType, type PenerimaanFilteredResult } from "@/app/actions/penerimaan-filtered"
 import { PenerimaanTahunBerjalanCard } from "./penerimaan-tahun-berjalan-card"
 import { CapaianTargetCard } from "./capaian-target-card"
 import { RataRataHarianCard } from "./rata-rata-harian-card"
@@ -22,6 +22,26 @@ export function PenerimaanCardsContainer({ className }: { className?: string }) 
   const [filterType, setFilterType] = useState<PenerimaanFilterType>("bulan")
   const [filterValue, setFilterValue] = useState<number>(currentMonth)
   const [year, setYear] = useState<number>(currentYear)
+
+  // Single shared data state — fetched ONCE for all child cards
+  const [data, setData] = useState<PenerimaanFilteredResult | null>(null)
+  const [isPending, startTransition] = useTransition()
+
+  const fetchData = useCallback((type: PenerimaanFilterType, value: number, yr: number) => {
+    startTransition(async () => {
+      try {
+        const result = await getPenerimaanFiltered(type, value, yr)
+        setData(result)
+      } catch (error) {
+        console.error("Failed to fetch penerimaan data", error)
+      }
+    })
+  }, [])
+
+  // Fetch on mount and whenever filters change
+  useEffect(() => {
+    fetchData(filterType, filterValue, year)
+  }, [filterType, filterValue, year, fetchData])
 
   const renderValueSelect = () => {
     if (filterType === "bulan") {
@@ -106,40 +126,45 @@ export function PenerimaanCardsContainer({ className }: { className?: string }) 
         </Select>
       </div>
 
+      {/* All 3 cards share the SAME data — fetched once */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <PenerimaanTahunBerjalanCard 
-          filterType={filterType} 
-          filterValue={filterValue} 
-          year={year} 
-          className="h-full" 
+        <PenerimaanTahunBerjalanCard
+          data={data}
+          isPending={isPending}
+          className="h-full"
         />
-        <CapaianTargetCard 
-          filterType={filterType} 
-          filterValue={filterValue} 
-          year={year} 
-          className="h-full" 
+        <CapaianTargetCard
+          data={data}
+          isPending={isPending}
+          filterType={filterType}
+          filterValue={filterValue}
+          year={year}
+          className="h-full"
         />
         <RataRataHarianCard
-          filterType={filterType} 
-          filterValue={filterValue} 
-          year={year} 
-          className="h-full" 
+          data={data}
+          isPending={isPending}
+          filterType={filterType}
+          filterValue={filterValue}
+          year={year}
+          className="h-full"
         />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 flex flex-col">
-          <TrenPendapatanChart 
-            filterType={filterType} 
-            filterValue={filterValue} 
-            year={year} 
+          <TrenPendapatanChart
+            data={data}
+            isPending={isPending}
+            filterType={filterType}
+            filterValue={filterValue}
+            year={year}
           />
         </div>
         <div className="flex flex-col">
-          <ProporsiPendapatanChart 
-            filterType={filterType} 
-            filterValue={filterValue} 
-            year={year} 
+          <ProporsiPendapatanChart
+            data={data}
+            isPending={isPending}
           />
         </div>
       </div>

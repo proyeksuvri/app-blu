@@ -1,9 +1,8 @@
 "use client"
 
-import { useState, useEffect, useTransition } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-import { getPenerimaanFiltered, type PenerimaanFilterType } from "@/app/actions/penerimaan-filtered"
+import { type PenerimaanFilterType, type PenerimaanFilteredResult } from "@/app/actions/penerimaan-filtered"
 import { Skeleton } from "@/components/ui/skeleton"
 
 const rupiah = (n: number) =>
@@ -15,16 +14,15 @@ const MONTHS = [
 ]
 
 interface RataRataHarianCardProps {
+  data: PenerimaanFilteredResult | null
+  isPending: boolean
   filterType: PenerimaanFilterType
   filterValue: number
   year: number
   className?: string
 }
 
-export function RataRataHarianCard({ filterType, filterValue, year, className }: RataRataHarianCardProps) {
-  const [isPending, startTransition] = useTransition()
-  const [data, setData] = useState<{ average: number, uniqueDays: number } | null>(null)
-  
+export function RataRataHarianCard({ data, isPending, filterType, filterValue, year, className }: RataRataHarianCardProps) {
   let descLabel = ""
   if (filterType === "bulan") {
     descLabel = `Bulan ${MONTHS[filterValue - 1]} ${year}`
@@ -36,17 +34,8 @@ export function RataRataHarianCard({ filterType, filterValue, year, className }:
     descLabel = `Tahun ${year}`
   }
 
-  useEffect(() => {
-    startTransition(async () => {
-      try {
-        const result = await getPenerimaanFiltered(filterType, filterValue, year)
-        const average = result.uniqueDays > 0 ? result.total / result.uniqueDays : 0
-        setData({ average, uniqueDays: result.uniqueDays })
-      } catch (error) {
-        console.error("Failed to fetch rata-rata harian", error)
-      }
-    })
-  }, [filterType, filterValue, year])
+  const average = data && data.uniqueDays > 0 ? data.total / data.uniqueDays : 0
+  const uniqueDays = data?.uniqueDays ?? 0
 
   return (
     <Card className={cn("flex flex-col h-full", className)}>
@@ -63,10 +52,10 @@ export function RataRataHarianCard({ filterType, filterValue, year, className }:
         ) : (
           <div className="flex flex-col gap-1.5 py-4">
             <p className="text-3xl font-bold tracking-tight text-primary">
-              {rupiah(data.average)}
+              {rupiah(average)}
             </p>
             <p className="text-xs text-muted-foreground">
-              {data.uniqueDays} hari aktif
+              {uniqueDays} hari aktif
             </p>
           </div>
         )}

@@ -1,9 +1,8 @@
 "use client"
 
-import { useState, useEffect, useTransition } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-import { getPenerimaanFiltered, type PenerimaanFilterType } from "@/app/actions/penerimaan-filtered"
+import { type PenerimaanFilterType, type PenerimaanFilteredResult } from "@/app/actions/penerimaan-filtered"
 import { Skeleton } from "@/components/ui/skeleton"
 
 const rupiah = (n: number) =>
@@ -15,16 +14,15 @@ const MONTHS = [
 ]
 
 interface CapaianTargetCardProps {
+  data: PenerimaanFilteredResult | null
+  isPending: boolean
   filterType: PenerimaanFilterType
   filterValue: number
   year: number
   className?: string
 }
 
-export function CapaianTargetCard({ filterType, filterValue, year, className }: CapaianTargetCardProps) {
-  const [isPending, startTransition] = useTransition()
-  const [total, setTotal] = useState<number | null>(null)
-  
+export function CapaianTargetCard({ data, isPending, filterType, filterValue, year, className }: CapaianTargetCardProps) {
   const BASE_TARGET_TAHUNAN = 28760284000 // 28.760.284.000
   let target = BASE_TARGET_TAHUNAN
   let descLabel = ""
@@ -42,17 +40,7 @@ export function CapaianTargetCard({ filterType, filterValue, year, className }: 
     descLabel = `Tahun ${year}`
   }
 
-  useEffect(() => {
-    startTransition(async () => {
-      try {
-        const result = await getPenerimaanFiltered(filterType, filterValue, year)
-        setTotal(result.total)
-      } catch (error) {
-        console.error("Failed to fetch capaian target", error)
-      }
-    })
-  }, [filterType, filterValue, year])
-
+  const total = data?.total ?? null
   const percentage = total !== null ? Math.min(Number(((total / target) * 100).toFixed(1)), 100) : 0
   const displayPercentage = total !== null ? Number(((total / target) * 100).toFixed(1)) : 0
   

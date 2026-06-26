@@ -1,6 +1,5 @@
 "use client"
 
-import { useState, useEffect, useTransition } from "react"
 import { Line, LineChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import {
   ChartContainer,
@@ -9,7 +8,7 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart"
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "@/components/ui/card"
-import { getPenerimaanFiltered, type PenerimaanFilterType } from "@/app/actions/penerimaan-filtered"
+import { type PenerimaanFilterType, type PenerimaanFilteredResult } from "@/app/actions/penerimaan-filtered"
 import { Skeleton } from "@/components/ui/skeleton"
 
 const chartConfig: ChartConfig = {
@@ -40,26 +39,14 @@ function getChartData(trendData: number[], filterType: PenerimaanFilterType, fil
 }
 
 interface TrenPendapatanChartProps {
+  data: PenerimaanFilteredResult | null
+  isPending: boolean
   filterType: PenerimaanFilterType
   filterValue: number
   year: number
 }
 
-export function TrenPendapatanChart({ filterType, filterValue, year }: TrenPendapatanChartProps) {
-  const [isPending, startTransition] = useTransition()
-  const [data, setData] = useState<{ total: number; prevTotal: number; prevYearTotal: number; trendData: number[] } | null>(null)
-
-  useEffect(() => {
-    startTransition(async () => {
-      try {
-        const result = await getPenerimaanFiltered(filterType, filterValue, year)
-        setData(result)
-      } catch (error) {
-        console.error("Failed to fetch filtered penerimaan", error)
-      }
-    })
-  }, [filterType, filterValue, year])
-
+export function TrenPendapatanChart({ data, isPending, filterType, filterValue, year }: TrenPendapatanChartProps) {
   const chartData = data ? getChartData(data.trendData, filterType, filterValue, year) : []
 
   return (

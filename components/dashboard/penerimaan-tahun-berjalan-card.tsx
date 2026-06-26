@@ -1,9 +1,8 @@
 "use client"
 
-import { useState, useEffect, useTransition } from "react"
 import { cn } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { getPenerimaanFiltered, type PenerimaanFilterType } from "@/app/actions/penerimaan-filtered"
+import { type PenerimaanFilteredResult } from "@/app/actions/penerimaan-filtered"
 import { Skeleton } from "@/components/ui/skeleton"
 import { TrendingUp, TrendingDown, Minus } from "lucide-react"
 import { LineChart, Line, ResponsiveContainer, YAxis } from "recharts"
@@ -12,27 +11,12 @@ const rupiah = (n: number) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n)
 
 interface PenerimaanTahunBerjalanCardProps {
-  filterType: PenerimaanFilterType
-  filterValue: number
-  year: number
+  data: PenerimaanFilteredResult | null
+  isPending: boolean
   className?: string
 }
 
-export function PenerimaanTahunBerjalanCard({ filterType, filterValue, year, className }: PenerimaanTahunBerjalanCardProps) {
-  const [isPending, startTransition] = useTransition()
-  const [data, setData] = useState<{ total: number; prevTotal: number; prevYearTotal: number; trendData: number[] } | null>(null)
-
-  useEffect(() => {
-    startTransition(async () => {
-      try {
-        const result = await getPenerimaanFiltered(filterType, filterValue, year)
-        setData(result)
-      } catch (error) {
-        console.error("Failed to fetch filtered penerimaan", error)
-      }
-    })
-  }, [filterType, filterValue, year])
-
+export function PenerimaanTahunBerjalanCard({ data, isPending, className }: PenerimaanTahunBerjalanCardProps) {
   const growth = data?.prevTotal ? Math.round(((data.total - data.prevTotal) / data.prevTotal) * 100) : null
   const isPositive = growth !== null && growth > 0
   const isNegative = growth !== null && growth < 0
