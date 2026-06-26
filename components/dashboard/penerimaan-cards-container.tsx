@@ -8,6 +8,7 @@ import { CapaianTargetCard } from "./capaian-target-card"
 import { RataRataHarianCard } from "./rata-rata-harian-card"
 import { TrenPendapatanChart } from "./tren-pendapatan-chart"
 import { ProporsiPendapatanChart } from "./proporsi-pendapatan-chart"
+import { ProporsiJenisChart } from "./proporsi-jenis-chart"
 import { cn } from "@/lib/utils"
 
 const MONTHS = [
@@ -168,6 +169,12 @@ export function PenerimaanCardsContainer({ className }: { className?: string }) 
           />
         </div>
       </div>
+
+      {/* Proporsi per Jenis Pendapatan — full width */}
+      <ProporsiJenisChart
+        data={data}
+        isPending={isPending}
+      />
     </div>
   )
 }

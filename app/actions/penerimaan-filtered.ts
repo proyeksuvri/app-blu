@@ -11,6 +11,7 @@ export type PenerimaanFilteredResult = {
   prevYearTotal: number
   trendData: number[]
   kategoriBreakdown: { name: string; value: number }[]
+  jenisBreakdown: { kode: string; nama: string; akun: string | null; value: number }[]
   awal: string
   akhir: string
   prevAwal: string
@@ -136,6 +137,9 @@ export async function getPenerimaanFiltered(
         jumlah,
         tanggal_terima,
         jenis_pendapatan (
+          kode,
+          nama,
+          akun_pendapatan,
           kategori_pendapatan (
             nama
           )
@@ -184,6 +188,20 @@ export async function getPenerimaanFiltered(
     .map(([name, value]) => ({ name, value }))
     .sort((a, b) => b.value - a.value)
 
+  // Jenis pendapatan breakdown (with kode & akun_pendapatan)
+  const jenisMap = new Map<string, { kode: string; nama: string; akun: string | null; value: number }>()
+  data.forEach((r) => {
+    const amount = Number(r.jumlah)
+    // @ts-ignore: nested join types
+    const jp = r.jenis_pendapatan
+    const key = jp?.kode || "lainnya"
+    if (!jenisMap.has(key)) {
+      jenisMap.set(key, { kode: jp?.kode || "-", nama: jp?.nama || "Lainnya", akun: jp?.akun_pendapatan || null, value: 0 })
+    }
+    jenisMap.get(key)!.value += amount
+  })
+  const jenisBreakdown = Array.from(jenisMap.values()).sort((a, b) => b.value - a.value)
+
   // Trend data
   let trendData: number[] = []
   if (type === "bulan") {
@@ -218,6 +236,7 @@ export async function getPenerimaanFiltered(
     prevYearTotal,
     trendData,
     kategoriBreakdown,
+    jenisBreakdown,
     awal,
     akhir,
     prevAwal,
