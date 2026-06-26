@@ -16,16 +16,16 @@ const rupiahCompact = (n: number) => {
 const rupiahFull = (n: number) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n)
 
-// Curated palette
+// Grayscale monochromatic palette — like reference
 const PALETTE = [
-  "#60a5fa", // blue
-  "#34d399", // emerald
-  "#fbbf24", // amber
-  "#f87171", // red
-  "#a78bfa", // violet
-  "#22d3ee", // cyan
-  "#fb923c", // orange
-  "#f472b6", // pink
+  "#e5e7eb", // gray-200  (lightest)
+  "#9ca3af", // gray-400
+  "#4b5563", // gray-600
+  "#1f2937", // gray-800  (darkest)
+  "#d1d5db", // gray-300
+  "#6b7280", // gray-500
+  "#374151", // gray-700
+  "#111827", // gray-900
 ]
 
 function getColor(index: number) {
