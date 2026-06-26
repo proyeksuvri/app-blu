@@ -1,18 +1,9 @@
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { format } from "date-fns"
-import { id } from "date-fns/locale"
-import { ArrowRight, Plus } from "lucide-react"
+import { Plus } from "lucide-react"
 import { getDashboardStats } from "@/app/actions/dashboard"
-import { PenerimaanStatusBadge } from "@/components/penerimaan-status-badge"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Card, CardHeader, CardContent, CardAction, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { PenerimaanCardsContainer } from "@/components/dashboard/penerimaan-cards-container"
-
-const rupiah = (n: number) =>
-  new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n)
 
 export default async function DashboardPage({
   searchParams,
@@ -23,13 +14,7 @@ export default async function DashboardPage({
   const stats = await getDashboardStats(params.bulan)
   if (!stats) redirect("/")
 
-  const isAdmin = stats.role === "ADMIN"
-  const isPimpinan = stats.role === "PIMPINAN"
   const isOperator = stats.role === "OPERATOR"
-
-  const growth = stats.totalBulanLalu > 0
-    ? Math.round(((stats.totalBulanIni - stats.totalBulanLalu) / stats.totalBulanLalu) * 100)
-    : null
 
   return (
     <div className="flex flex-col gap-6">
@@ -45,8 +30,6 @@ export default async function DashboardPage({
         </p>
       </div>
 
-
-
       {/* Main Stats Grid */}
       <PenerimaanCardsContainer />
 
@@ -60,105 +43,6 @@ export default async function DashboardPage({
         </div>
       )}
 
-      {/* Transaksi terbaru */}
-      {(isAdmin || isPimpinan) && (
-        <div className="grid gap-6 grid-cols-1">
-          <Card className="overflow-hidden p-0">
-            <CardHeader className="border-b px-5 py-3.5">
-              <CardTitle className="text-sm font-medium text-foreground/60">Transaksi Terbaru</CardTitle>
-              <CardAction>
-                <Link href="/penerimaan" className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground/70 transition-colors py-1.5 -my-1.5 px-1 -mx-1">
-                  Lihat semua <ArrowRight className="h-3 w-3" />
-                </Link>
-              </CardAction>
-            </CardHeader>
-
-            <CardContent className="p-0">
-              {stats.terbaru.length === 0 ? (
-                <div className="px-5 py-8 text-center text-sm text-muted-foreground/70">
-                  Belum ada transaksi
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-border hover:bg-transparent">
-                      <TableHead className="text-muted-foreground text-xs">Nomor Bukti</TableHead>
-                      <TableHead className="text-muted-foreground text-xs">Tanggal</TableHead>
-                      <TableHead className="text-muted-foreground text-xs">Jenis</TableHead>
-                      <TableHead className="text-muted-foreground text-xs">Unit</TableHead>
-                      <TableHead className="text-muted-foreground text-xs text-right">Jumlah</TableHead>
-                      <TableHead className="text-muted-foreground text-xs">Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {stats.terbaru.map((row) => (
-                      <TableRow key={row.id} className="border-border/50 hover:bg-muted/20">
-                        <TableCell className="py-3">
-                          <Link href={`/penerimaan/${row.id}`} className="text-sm font-mono text-primary hover:underline">
-                            {row.nomor_bukti}
-                          </Link>
-                        </TableCell>
-                        <TableCell className="text-sm text-foreground/60 py-3">
-                          {format(new Date(row.tanggal_terima), "dd MMM yyyy", { locale: id })}
-                        </TableCell>
-                        <TableCell className="text-sm text-foreground/70 py-3">
-                          {row.jenis?.nama ?? "â€”"}
-                        </TableCell>
-                        <TableCell className="text-sm text-foreground/50 py-3">
-                          {row.unit?.kode ?? "â€”"}
-                        </TableCell>
-                        <TableCell className="text-sm text-foreground/80 py-3 text-right font-medium">
-                          {rupiah(row.jumlah)}
-                        </TableCell>
-                        <TableCell className="py-3">
-                          <PenerimaanStatusBadge status={row.status as "draft" | "verified" | "void"} />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
     </div>
   )
-}
-
-function StatCard({
-  label, value, sub, color, href,
-}: {
-  label: string
-  value: string
-  sub?: string
-  color: "green" | "blue" | "amber" | "red" | "default"
-  href?: string
-}) {
-  const valueColors = {
-    green:   "text-foreground",
-    blue:    "text-foreground",
-    amber:   "text-foreground",
-    red:     "text-destructive",
-    default: "text-foreground",
-  }
-
-  const inner = (
-    <Card>
-      <CardContent className="flex flex-col gap-1.5 py-4">
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className={`text-xl font-semibold ${valueColors[color]}`}>{value}</p>
-        {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
-      </CardContent>
-    </Card>
-  )
-
-  if (href) {
-    return (
-      <Link href={href} className="transition-opacity hover:opacity-80">
-        {inner}
-      </Link>
-    )
-  }
-  return inner
 }
