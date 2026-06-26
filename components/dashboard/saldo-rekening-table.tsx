@@ -76,9 +76,15 @@ export function SaldoRekeningTable({ data, isPending }: SaldoRekeningTableProps)
                     <tr key={item.kode} className="border-b border-border/50 last:border-0 hover:bg-muted/50 transition-colors">
                       <td className="py-4">
                         <div className="flex items-center gap-3">
-                          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white font-medium ${color}`}>
-                            {initial}
-                          </div>
+                          {item.bank.toLowerCase().includes("bsi") ? (
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full overflow-hidden bg-white border border-border/50">
+                              <img src="/bsi-logo.svg" alt="BSI" className="h-6 w-6 object-contain" />
+                            </div>
+                          ) : (
+                            <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white font-medium ${color}`}>
+                              {initial}
+                            </div>
+                          )}
                           <span className="font-medium text-foreground">{item.bank}</span>
                         </div>
                       </td>
