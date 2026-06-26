@@ -6,14 +6,12 @@ import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "@/com
 import { type PenerimaanFilteredResult } from "@/app/actions/penerimaan-filtered"
 import { Skeleton } from "@/components/ui/skeleton"
 
-const rupiah = (n: number) =>
-  new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    maximumFractionDigits: 0,
-    notation: n >= 1_000_000_000 ? "compact" : "standard",
-    compactDisplay: "short",
-  }).format(n)
+const rupiahCompact = (n: number) => {
+  if (n >= 1_000_000_000) return `Rp ${(n / 1_000_000_000).toFixed(1).replace(".", ",")} M`
+  if (n >= 1_000_000) return `Rp ${(n / 1_000_000).toFixed(1).replace(".", ",")} jt`
+  if (n >= 1_000) return `Rp ${(n / 1_000).toFixed(0)} rb`
+  return `Rp ${n}`
+}
 
 const rupiahFull = (n: number) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n)
@@ -127,8 +125,8 @@ export function ProporsiPendapatanChart({ data, isPending }: ProporsiPendapatanC
               {/* Center label overlay */}
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                 <span className="text-xs text-muted-foreground font-medium">Total</span>
-                <span className="text-lg font-bold text-foreground leading-tight mt-0.5">
-                  {rupiah(total)}
+                <span className="text-xl font-bold text-foreground leading-tight mt-0.5">
+                  {rupiahCompact(total)}
                 </span>
               </div>
             </div>
