@@ -11,22 +11,6 @@ const rupiahCompact = (n: number) => {
   return `Rp ${n}`
 }
 
-// Grayscale monochromatic palette — matching donut chart
-const PALETTE = [
-  "#e5e7eb", // gray-200  (lightest)
-  "#9ca3af", // gray-400
-  "#4b5563", // gray-600
-  "#1f2937", // gray-800  (darkest)
-  "#d1d5db", // gray-300
-  "#6b7280", // gray-500
-  "#374151", // gray-700
-  "#111827", // gray-900
-]
-
-function getColor(index: number) {
-  return PALETTE[index % PALETTE.length]
-}
-
 interface ProporsiJenisChartProps {
   data: PenerimaanFilteredResult | null
   isPending: boolean
@@ -65,17 +49,13 @@ export function ProporsiJenisChart({ data, isPending }: ProporsiJenisChartProps)
             {items.map((item, i) => {
               const pct = total > 0 ? (item.value / total) * 100 : 0
               const barWidth = maxValue > 0 ? (item.value / maxValue) * 100 : 0
-              const color = getColor(i)
 
               return (
-                <div key={item.kode} className="py-3.5 flex flex-col gap-2">
-                  {/* Row: name + akun badge + value + pct */}
+                <div key={item.kode ?? i} className="py-3.5 flex flex-col gap-2">
+                  {/* Row: name + akun badge + pct */}
                   <div className="flex items-center gap-2">
-                    {/* Dot */}
-                    <span
-                      className="shrink-0 w-2 h-2 rounded-full"
-                      style={{ backgroundColor: color }}
-                    />
+                    {/* Dot — foreground color, adapts to theme */}
+                    <span className="shrink-0 w-2 h-2 rounded-full bg-foreground/80" />
 
                     {/* Name */}
                     <span className="text-sm text-foreground/80 flex-1 min-w-0 leading-tight">
@@ -89,20 +69,19 @@ export function ProporsiJenisChart({ data, isPending }: ProporsiJenisChartProps)
                       </span>
                     )}
 
-                    {/* Percentage — right aligned, colored */}
-                    <span
-                      className="shrink-0 text-sm font-bold tabular-nums w-12 text-right"
-                      style={{ color }}
-                    >
+                    {/* Percentage — foreground, right aligned */}
+                    <span className="shrink-0 text-sm font-bold tabular-nums w-12 text-right text-foreground">
                       {pct.toFixed(1)}%
                     </span>
                   </div>
 
-                  {/* Progress bar */}
+                  {/* Progress bar
+                      Dark mode : filled = white (foreground), track = dark gray (muted)
+                      Light mode: filled = black (foreground), track = light gray (muted) */}
                   <div className="relative h-1.5 w-full rounded-full bg-muted overflow-hidden">
                     <div
-                      className="absolute left-0 top-0 h-full rounded-full transition-all duration-700 ease-out"
-                      style={{ width: `${barWidth}%`, backgroundColor: color }}
+                      className="absolute left-0 top-0 h-full rounded-full bg-foreground transition-all duration-700 ease-out"
+                      style={{ width: `${barWidth}%` }}
                     />
                   </div>
 
