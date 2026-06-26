@@ -180,8 +180,11 @@ export async function getPenerimaanFiltered(
   const kategoriMap = new Map<string, number>()
   data.forEach((r) => {
     const amount = Number(r.jumlah)
-    // @ts-ignore: nested join types
-    const kategoriName = r.jenis_pendapatan?.kategori_pendapatan?.nama || "Lainnya"
+    const jpRaw = r.jenis_pendapatan
+    const jp = (Array.isArray(jpRaw) ? jpRaw[0] : jpRaw) as any
+    const katRaw = jp?.kategori_pendapatan
+    const kat = (Array.isArray(katRaw) ? katRaw[0] : katRaw) as any
+    const kategoriName = kat?.nama || "Lainnya"
     kategoriMap.set(kategoriName, (kategoriMap.get(kategoriName) || 0) + amount)
   })
   const kategoriBreakdown = Array.from(kategoriMap.entries())
@@ -192,8 +195,8 @@ export async function getPenerimaanFiltered(
   const jenisMap = new Map<string, { kode: string; nama: string; akun: string | null; value: number }>()
   data.forEach((r) => {
     const amount = Number(r.jumlah)
-    // @ts-ignore: nested join types
-    const jp = r.jenis_pendapatan
+    const jpRaw = r.jenis_pendapatan
+    const jp = (Array.isArray(jpRaw) ? jpRaw[0] : jpRaw) as any
     const key = jp?.kode || "lainnya"
     if (!jenisMap.has(key)) {
       jenisMap.set(key, { kode: jp?.kode || "-", nama: jp?.nama || "Lainnya", akun: jp?.akun_pendapatan || null, value: 0 })

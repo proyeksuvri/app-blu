@@ -152,29 +152,26 @@ export function PenerimaanCardsContainer({ className }: { className?: string }) 
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 flex flex-col">
-          <TrenPendapatanChart
-            data={data}
-            isPending={isPending}
-            filterType={filterType}
-            filterValue={filterValue}
-            year={year}
-          />
-        </div>
-        <div className="flex flex-col">
-          <ProporsiPendapatanChart
-            data={data}
-            isPending={isPending}
-          />
-        </div>
-      </div>
-
-      {/* Proporsi per Jenis Pendapatan — full width */}
-      <ProporsiJenisChart
+      {/* Tren Pendapatan Chart */}
+      <TrenPendapatanChart
         data={data}
         isPending={isPending}
+        filterType={filterType}
+        filterValue={filterValue}
+        year={year}
       />
+
+      {/* Proporsi Pendapatan & Proporsi per Jenis Pendapatan */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <ProporsiPendapatanChart
+          data={data}
+          isPending={isPending}
+        />
+        <ProporsiJenisChart
+          data={data}
+          isPending={isPending}
+        />
+      </div>
     </div>
   )
 }
