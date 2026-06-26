@@ -1,30 +1,37 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { PieChart, Pie, Cell } from "recharts"
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts"
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "@/components/ui/card"
 import { type PenerimaanFilteredResult } from "@/app/actions/penerimaan-filtered"
 import { Skeleton } from "@/components/ui/skeleton"
 
 const rupiah = (n: number) =>
+  new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0,
+    notation: n >= 1_000_000_000 ? "compact" : "standard",
+    compactDisplay: "short",
+  }).format(n)
+
+const rupiahFull = (n: number) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n)
 
-// Curated colorful palette — works on both dark & light mode
+// Curated palette
 const PALETTE = [
-  { light: "#3b82f6", dark: "#60a5fa" }, // blue
-  { light: "#10b981", dark: "#34d399" }, // emerald
-  { light: "#f59e0b", dark: "#fbbf24" }, // amber
-  { light: "#ef4444", dark: "#f87171" }, // red
-  { light: "#8b5cf6", dark: "#a78bfa" }, // violet
-  { light: "#06b6d4", dark: "#22d3ee" }, // cyan
-  { light: "#f97316", dark: "#fb923c" }, // orange
-  { light: "#ec4899", dark: "#f472b6" }, // pink
+  "#60a5fa", // blue
+  "#34d399", // emerald
+  "#fbbf24", // amber
+  "#f87171", // red
+  "#a78bfa", // violet
+  "#22d3ee", // cyan
+  "#fb923c", // orange
+  "#f472b6", // pink
 ]
 
-function getColor(index: number, isDark: boolean) {
-  const p = PALETTE[index % PALETTE.length]
-  return isDark ? p.dark : p.light
+function getColor(index: number) {
+  return PALETTE[index % PALETTE.length]
 }
 
 function useIsDark() {
@@ -39,39 +46,15 @@ function useIsDark() {
   return isDark
 }
 
-// Custom label rendered inside the arc — shows percentage
-interface LabelProps {
-  cx?: number
-  cy?: number
-  midAngle?: number
-  innerRadius?: number
-  outerRadius?: number
-  percent?: number
-  index?: number
-  isDark: boolean
-}
-
-function CustomLabel({ cx = 0, cy = 0, midAngle = 0, innerRadius = 0, outerRadius = 0, percent = 0, index = 0, isDark }: LabelProps) {
-  if (percent < 0.05) return null // skip tiny slices
-  const RADIAN = Math.PI / 180
-  // place label outside the arc
-  const radius = outerRadius + 22
-  const x = cx + radius * Math.cos(-midAngle * RADIAN)
-  const y = cy + radius * Math.sin(-midAngle * RADIAN)
-  const pct = `${(percent * 100).toFixed(1)}%`
-
+// Custom tooltip
+function CustomTooltip({ active, payload }: { active?: boolean; payload?: { name: string; value: number; payload: { fill: string } }[] }) {
+  if (!active || !payload?.length) return null
+  const item = payload[0]
   return (
-    <text
-      x={x}
-      y={y}
-      textAnchor={x > cx ? "start" : "end"}
-      dominantBaseline="central"
-      fontSize={11}
-      fontWeight={600}
-      fill={getColor(index, isDark)}
-    >
-      {pct}
-    </text>
+    <div className="rounded-lg border border-border/50 bg-background/95 px-3 py-2 shadow-xl backdrop-blur-sm text-xs">
+      <p className="font-semibold text-foreground">{item.name}</p>
+      <p className="text-muted-foreground mt-0.5">{rupiahFull(item.value)}</p>
+    </div>
   )
 }
 
@@ -88,13 +71,8 @@ export function ProporsiPendapatanChart({ data, isPending }: ProporsiPendapatanC
 
   const mappedData = rawData.map((d, i) => ({
     ...d,
-    fill: getColor(i, isDark),
+    fill: getColor(i),
   }))
-
-  const chartConfig = mappedData.reduce((acc, curr, index) => {
-    acc[`cat_${index}`] = { label: curr.name, color: curr.fill }
-    return acc
-  }, {} as ChartConfig)
 
   return (
     <Card className="h-full flex flex-col">
@@ -102,10 +80,15 @@ export function ProporsiPendapatanChart({ data, isPending }: ProporsiPendapatanC
         <CardTitle className="text-base">Proporsi Pendapatan</CardTitle>
         <CardDescription className="text-xs">Breakdown berdasarkan kategori</CardDescription>
       </CardHeader>
-      <CardContent className="flex-1 flex flex-col gap-3 pt-0 pb-4 px-4">
+      <CardContent className="flex-1 flex flex-col gap-4 pt-0 pb-5 px-4">
         {isPending || !data ? (
-          <div className="flex-1 flex items-center justify-center">
-            <Skeleton className="h-[180px] w-[180px] rounded-full" />
+          <div className="flex flex-col items-center gap-4">
+            <Skeleton className="h-[180px] w-[180px] rounded-full mt-2" />
+            <div className="grid grid-cols-2 gap-2 w-full">
+              {[...Array(4)].map((_, i) => (
+                <Skeleton key={i} className="h-10 rounded-lg" />
+              ))}
+            </div>
           </div>
         ) : mappedData.length === 0 ? (
           <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
@@ -113,53 +96,61 @@ export function ProporsiPendapatanChart({ data, isPending }: ProporsiPendapatanC
           </div>
         ) : (
           <>
-            {/* Donut chart */}
-            <ChartContainer config={chartConfig} className="h-[220px] w-full">
-              <PieChart margin={{ top: 20, right: 30, bottom: 20, left: 30 }}>
-                <ChartTooltip
-                  content={
-                    <ChartTooltipContent
-                      formatter={(value, name) => [
-                        rupiah(Number(value)),
-                        String(name),
-                      ]}
-                      hideLabel
-                    />
-                  }
-                />
-                <Pie
-                  data={mappedData}
-                  dataKey="value"
-                  nameKey="name"
-                  innerRadius={55}
-                  outerRadius={78}
-                  paddingAngle={2}
-                  stroke="transparent"
-                  labelLine={false}
-                  label={(props) => (
-                    <CustomLabel {...props} isDark={isDark} />
-                  )}
-                >
-                  {mappedData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                  ))}
-                </Pie>
-              </PieChart>
-            </ChartContainer>
+            {/* Donut chart with center label */}
+            <div className="relative flex items-center justify-center" style={{ height: 200 }}>
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Tooltip content={<CustomTooltip />} />
+                  <Pie
+                    data={mappedData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={62}
+                    outerRadius={88}
+                    paddingAngle={2}
+                    stroke="transparent"
+                    startAngle={90}
+                    endAngle={-270}
+                    isAnimationActive={true}
+                    animationBegin={0}
+                    animationDuration={800}
+                  >
+                    {mappedData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
 
-            {/* Legend list */}
-            <div className="flex flex-col gap-1.5 overflow-y-auto max-h-36">
+              {/* Center label overlay */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <span className="text-xs text-muted-foreground font-medium">Total</span>
+                <span className="text-lg font-bold text-foreground leading-tight mt-0.5">
+                  {rupiah(total)}
+                </span>
+              </div>
+            </div>
+
+            {/* 2-column legend grid */}
+            <div className="grid grid-cols-2 gap-2">
               {mappedData.map((d, i) => {
                 const pct = total > 0 ? ((d.value / total) * 100).toFixed(1) : "0.0"
                 return (
-                  <div key={i} className="flex items-center gap-2 min-w-0">
+                  <div
+                    key={i}
+                    className="flex items-center justify-between gap-2 rounded-lg px-3 py-2.5 bg-muted/40 dark:bg-muted/20 border border-border/30"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span
+                        className="shrink-0 inline-block w-2 h-2 rounded-full"
+                        style={{ backgroundColor: d.fill }}
+                      />
+                      <span className="text-xs text-foreground/70 truncate">{d.name}</span>
+                    </div>
                     <span
-                      className="shrink-0 inline-block w-2.5 h-2.5 rounded-sm"
-                      style={{ backgroundColor: d.fill }}
-                    />
-                    <span className="text-xs text-foreground/70 truncate flex-1 min-w-0">{d.name}</span>
-                    <span
-                      className="text-xs font-semibold shrink-0 tabular-nums"
+                      className="text-xs font-bold shrink-0 tabular-nums"
                       style={{ color: d.fill }}
                     >
                       {pct}%
