@@ -16,20 +16,40 @@ const rupiahCompact = (n: number) => {
 const rupiahFull = (n: number) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n)
 
-// Grayscale monochromatic palette — like reference
-const PALETTE = [
-  "#e5e7eb", // gray-200  (lightest)
+// Dark mode palette — light grays visible on dark background
+const PALETTE_DARK = [
+  "#e5e7eb", // gray-200 (brightest)
   "#9ca3af", // gray-400
-  "#4b5563", // gray-600
-  "#1f2937", // gray-800  (darkest)
-  "#d1d5db", // gray-300
   "#6b7280", // gray-500
   "#374151", // gray-700
+  "#d1d5db", // gray-300
+  "#4b5563", // gray-600
+  "#1f2937", // gray-800
   "#111827", // gray-900
 ]
 
-function getColor(index: number) {
-  return PALETTE[index % PALETTE.length]
+// Light mode palette — dark grays visible on white background (like reference)
+const PALETTE_LIGHT = [
+  "#111827", // gray-900  (darkest)
+  "#374151", // gray-700
+  "#6b7280", // gray-500
+  "#9ca3af", // gray-400  (lightest visible)
+  "#1f2937", // gray-800
+  "#4b5563", // gray-600
+  "#d1d5db", // gray-300
+  "#e5e7eb", // gray-200
+]
+
+function useIsDark() {
+  const [isDark, setIsDark] = useState(false)
+  useEffect(() => {
+    const check = () => setIsDark(document.documentElement.classList.contains("dark"))
+    check()
+    const obs = new MutationObserver(check)
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] })
+    return () => obs.disconnect()
+  }, [])
+  return isDark
 }
 
 // Custom tooltip
@@ -50,12 +70,15 @@ interface ProporsiPendapatanChartProps {
 }
 
 export function ProporsiPendapatanChart({ data, isPending }: ProporsiPendapatanChartProps) {
+  const isDark = useIsDark()
+  const PALETTE = isDark ? PALETTE_DARK : PALETTE_LIGHT
+
   const rawData = data?.kategoriBreakdown || []
   const total = rawData.reduce((s, d) => s + d.value, 0)
 
   const mappedData = rawData.map((d, i) => ({
     ...d,
-    fill: getColor(i),
+    fill: PALETTE[i % PALETTE.length],
   }))
 
   return (
