@@ -9,6 +9,7 @@ import { RataRataHarianCard } from "./rata-rata-harian-card"
 import { TrenPendapatanChart } from "./tren-pendapatan-chart"
 import { ProporsiPendapatanChart } from "./proporsi-pendapatan-chart"
 import { ProporsiJenisChart } from "./proporsi-jenis-chart"
+import { SaldoRekeningTable } from "./saldo-rekening-table"
 import { cn } from "@/lib/utils"
 
 const MONTHS = [
@@ -171,6 +172,11 @@ export function PenerimaanCardsContainer({ className }: { className?: string }) 
           data={data}
           isPending={isPending}
         />
+      </div>
+
+      {/* Tabel Saldo Rekening Bank */}
+      <div className="w-full">
+        <SaldoRekeningTable />
       </div>
     </div>
   )
