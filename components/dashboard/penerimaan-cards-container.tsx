@@ -176,7 +176,7 @@ export function PenerimaanCardsContainer({ className }: { className?: string }) 
 
       {/* Tabel Saldo Rekening Bank */}
       <div className="w-full">
-        <SaldoRekeningTable />
+        <SaldoRekeningTable data={data} isPending={isPending} />
       </div>
     </div>
   )

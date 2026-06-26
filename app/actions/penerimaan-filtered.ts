@@ -12,6 +12,7 @@ export type PenerimaanFilteredResult = {
   trendData: number[]
   kategoriBreakdown: { name: string; value: number }[]
   jenisBreakdown: { kode: string; nama: string; akun: string | null; value: number }[]
+  rekeningBreakdown: { kode: string; bank: string; namaRekening: string; noRekening: string; value: number }[]
   awal: string
   akhir: string
   prevAwal: string
@@ -143,6 +144,12 @@ export async function getPenerimaanFiltered(
           kategori_pendapatan (
             nama
           )
+        ),
+        rekening:rekening_bank (
+          kode,
+          nama_bank,
+          nama_rekening,
+          nomor_rekening
         )
       `)
       .eq("status", "verified")
@@ -205,6 +212,28 @@ export async function getPenerimaanFiltered(
   })
   const jenisBreakdown = Array.from(jenisMap.values()).sort((a, b) => b.value - a.value)
 
+  // Rekening breakdown
+  const rekeningMap = new Map<string, { kode: string; bank: string; namaRekening: string; noRekening: string; value: number }>()
+  data.forEach((r) => {
+    const amount = Number(r.jumlah)
+    const rekRaw = r.rekening
+    const rek = (Array.isArray(rekRaw) ? rekRaw[0] : rekRaw) as any
+    if (rek) {
+      const key = rek.kode || "unknown"
+      if (!rekeningMap.has(key)) {
+        rekeningMap.set(key, {
+          kode: rek.kode || "-",
+          bank: rek.nama_bank || "Unknown Bank",
+          namaRekening: rek.nama_rekening || "-",
+          noRekening: rek.nomor_rekening || "-",
+          value: 0
+        })
+      }
+      rekeningMap.get(key)!.value += amount
+    }
+  })
+  const rekeningBreakdown = Array.from(rekeningMap.values()).sort((a, b) => b.value - a.value)
+
   // Trend data
   let trendData: number[] = []
   if (type === "bulan") {
@@ -240,6 +269,7 @@ export async function getPenerimaanFiltered(
     trendData,
     kategoriBreakdown,
     jenisBreakdown,
+    rekeningBreakdown,
     awal,
     akhir,
     prevAwal,
