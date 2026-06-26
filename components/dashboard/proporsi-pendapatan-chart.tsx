@@ -32,20 +32,8 @@ function getColor(index: number) {
   return PALETTE[index % PALETTE.length]
 }
 
-function useIsDark() {
-  const [isDark, setIsDark] = useState(false)
-  useEffect(() => {
-    const check = () => setIsDark(document.documentElement.classList.contains("dark"))
-    check()
-    const obs = new MutationObserver(check)
-    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] })
-    return () => obs.disconnect()
-  }, [])
-  return isDark
-}
-
 // Custom tooltip
-function CustomTooltip({ active, payload }: { active?: boolean; payload?: { name: string; value: number; payload: { fill: string } }[] }) {
+function CustomTooltip({ active, payload }: { active?: boolean; payload?: { name: string; value: number }[] }) {
   if (!active || !payload?.length) return null
   const item = payload[0]
   return (
@@ -62,8 +50,6 @@ interface ProporsiPendapatanChartProps {
 }
 
 export function ProporsiPendapatanChart({ data, isPending }: ProporsiPendapatanChartProps) {
-  const isDark = useIsDark()
-
   const rawData = data?.kategoriBreakdown || []
   const total = rawData.reduce((s, d) => s + d.value, 0)
 
@@ -78,13 +64,17 @@ export function ProporsiPendapatanChart({ data, isPending }: ProporsiPendapatanC
         <CardTitle className="text-base">Proporsi Pendapatan</CardTitle>
         <CardDescription className="text-xs">Breakdown berdasarkan kategori</CardDescription>
       </CardHeader>
-      <CardContent className="flex-1 flex flex-col gap-4 pt-0 pb-5 px-4">
+      <CardContent className="flex-1 flex flex-col justify-center pt-0 pb-5 px-4">
         {isPending || !data ? (
-          <div className="flex flex-col items-center gap-4">
-            <Skeleton className="h-[180px] w-[180px] rounded-full mt-2" />
-            <div className="grid grid-cols-2 gap-2 w-full">
+          /* Skeleton — horizontal layout */
+          <div className="flex items-center gap-6">
+            <Skeleton className="shrink-0 h-[160px] w-[160px] rounded-full" />
+            <div className="flex-1 grid grid-cols-2 gap-3">
               {[...Array(4)].map((_, i) => (
-                <Skeleton key={i} className="h-10 rounded-lg" />
+                <div key={i} className="flex flex-col gap-1.5">
+                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="h-5 w-20" />
+                </div>
               ))}
             </div>
           </div>
@@ -93,10 +83,11 @@ export function ProporsiPendapatanChart({ data, isPending }: ProporsiPendapatanC
             Tidak ada data
           </div>
         ) : (
-          <>
-            {/* Donut chart with center label */}
-            <div className="relative flex items-center justify-center" style={{ height: 200 }}>
-              <ResponsiveContainer width="100%" height={200}>
+          /* Main content — horizontal: donut left, legend grid right */
+          <div className="flex items-center gap-6">
+            {/* Donut chart with center total */}
+            <div className="relative shrink-0" style={{ width: 180, height: 180 }}>
+              <ResponsiveContainer width={180} height={180}>
                 <PieChart>
                   <Tooltip content={<CustomTooltip />} />
                   <Pie
@@ -105,8 +96,8 @@ export function ProporsiPendapatanChart({ data, isPending }: ProporsiPendapatanC
                     nameKey="name"
                     cx="50%"
                     cy="50%"
-                    innerRadius={62}
-                    outerRadius={88}
+                    innerRadius={58}
+                    outerRadius={84}
                     paddingAngle={2}
                     stroke="transparent"
                     startAngle={90}
@@ -124,40 +115,32 @@ export function ProporsiPendapatanChart({ data, isPending }: ProporsiPendapatanC
 
               {/* Center label overlay */}
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-xs text-muted-foreground font-medium">Total</span>
-                <span className="text-xl font-bold text-foreground leading-tight mt-0.5">
+                <span className="text-lg font-bold text-foreground leading-tight">
                   {rupiahCompact(total)}
                 </span>
               </div>
             </div>
 
-            {/* 1-column legend */}
-            <div className="flex flex-col gap-2">
-              {mappedData.map((d, i) => {
-                const pct = total > 0 ? ((d.value / total) * 100).toFixed(1) : "0.0"
-                return (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between gap-2 rounded-lg px-3 py-2.5 bg-muted/40 dark:bg-muted/20 border border-border/30"
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span
-                        className="shrink-0 inline-block w-2 h-2 rounded-full"
-                        style={{ backgroundColor: d.fill }}
-                      />
-                      <span className="text-xs text-foreground/70">{d.name}</span>
-                    </div>
+            {/* Legend — 2-column grid matching reference */}
+            <div className="flex-1 grid grid-cols-2 gap-x-6 gap-y-4">
+              {mappedData.map((d, i) => (
+                <div key={i} className="flex flex-col gap-0.5 min-w-0">
+                  {/* Dot + name */}
+                  <div className="flex items-center gap-1.5 min-w-0">
                     <span
-                      className="text-xs font-bold shrink-0 tabular-nums"
-                      style={{ color: d.fill }}
-                    >
-                      {pct}%
-                    </span>
+                      className="shrink-0 inline-block w-2 h-2 rounded-full"
+                      style={{ backgroundColor: d.fill }}
+                    />
+                    <span className="text-xs text-muted-foreground truncate">{d.name}</span>
                   </div>
-                )
-              })}
+                  {/* Value */}
+                  <span className="text-sm font-bold text-foreground tabular-nums pl-3.5">
+                    {rupiahCompact(d.value)}
+                  </span>
+                </div>
+              ))}
             </div>
-          </>
+          </div>
         )}
       </CardContent>
     </Card>
