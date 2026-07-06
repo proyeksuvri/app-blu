@@ -21,9 +21,9 @@ export function PenerimaanCardsContainer({ className }: { className?: string }) 
   const currentYear = new Date().getFullYear()
   const currentMonth = new Date().getMonth() + 1 // 1-12
 
-  const [filterType, setFilterType] = useState<PenerimaanFilterType>("bulan")
-  const [filterValue, setFilterValue] = useState<number>(currentMonth)
-  const [year, setYear] = useState<number>(currentYear)
+  const [filterType, setFilterType] = useState<PenerimaanFilterType>("tahun")
+  const [filterValue, setFilterValue] = useState<number>(1)
+  const [year, setYear] = useState<number>(2026)
 
   // Single shared data state — fetched ONCE for all child cards
   const [data, setData] = useState<PenerimaanFilteredResult | null>(null)

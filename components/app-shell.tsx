@@ -80,6 +80,7 @@ function getMenuItems(role: string): MenuItem[] {
       children: [
         { label: "Daftar Pengeluaran", href: "/pengeluaran" },
         { label: "Input Baru", href: "/pengeluaran/baru" },
+        { label: "Import Excel/CSV", href: "/pengeluaran/import" },
       ],
     },
     {
@@ -110,6 +111,7 @@ function getMenuItems(role: string): MenuItem[] {
       children: [
         { label: "Daftar Pengeluaran", href: "/pengeluaran" },
         { label: "Input Baru", href: "/pengeluaran/baru" },
+        { label: "Import Excel/CSV", href: "/pengeluaran/import" },
       ],
     },
   ]

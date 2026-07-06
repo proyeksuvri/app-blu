@@ -10,9 +10,10 @@ const STATUS_OPTIONS: FilterOption[] = [
 
 type PenerimaanFiltersProps = {
   jenisOptions: FilterOption[]
+  rekeningOptions: FilterOption[]
 }
 
-export function PenerimaanFilters({ jenisOptions }: PenerimaanFiltersProps) {
+export function PenerimaanFilters({ jenisOptions, rekeningOptions }: PenerimaanFiltersProps) {
   return (
     <div className="flex flex-wrap items-end gap-3">
       <FacetedFilter
@@ -29,7 +30,15 @@ export function PenerimaanFilters({ jenisOptions }: PenerimaanFiltersProps) {
           placeholder="Semua jenis"
         />
       )}
-      <FilterReset paramKeys={["status", "jenis_id"]} />
+      {rekeningOptions.length > 0 && (
+        <FacetedFilter
+          title="Rekening Bank"
+          paramKey="rekening_id"
+          options={rekeningOptions}
+          placeholder="Semua rekening"
+        />
+      )}
+      <FilterReset paramKeys={["status", "jenis_id", "rekening_id"]} />
     </div>
   )
 }

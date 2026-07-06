@@ -3,7 +3,7 @@ import Link from "next/link"
 import { getCurrentProfile } from "@/lib/session"
 import { redirect } from "next/navigation"
 import { listPenerimaan, countDraft, countDraftAndVerified } from "@/app/actions/penerimaan"
-import { listJenis } from "@/app/actions/master"
+import { listJenis, listRekening } from "@/app/actions/master"
 import { PageHeader } from "@/components/page-header"
 import { Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -14,7 +14,7 @@ import { PenerimaanPagination } from "./_components/penerimaan-pagination"
 export default async function PenerimaanPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; jenis_id?: string; page?: string; limit?: string; sort?: string; order?: string }>
+  searchParams: Promise<{ status?: string; jenis_id?: string; rekening_id?: string; page?: string; limit?: string; sort?: string; order?: string }>
 }) {
   const profile = await getCurrentProfile()
   if (!profile) redirect("/")
@@ -28,25 +28,29 @@ export default async function PenerimaanPage({
 
   const statuses = (params.status ?? "").split(",").filter(Boolean)
   const jenisIds = (params.jenis_id ?? "").split(",").filter(Boolean)
+  const rekeningIds = (params.rekening_id ?? "").split(",").filter(Boolean)
 
   const isOperator = profile.role.kode === "OPERATOR"
   const isAdmin = profile.role.kode === "ADMIN"
 
-  const [{ data, count }, jenisList, totalDraft, totalDeletable] = await Promise.all([
+  const [{ data, count }, jenisList, rekeningList, totalDraft, totalDeletable] = await Promise.all([
     listPenerimaan({
       statuses: statuses.length ? statuses : undefined,
       jenis_ids: jenisIds.length ? jenisIds : undefined,
+      rekening_id: rekeningIds.length === 1 ? rekeningIds[0] : undefined,
       page: currentPage,
       limit: pageSize,
       sort,
       order,
     }),
     listJenis(),
+    listRekening(),
     isAdmin ? countDraft() : Promise.resolve(0),
     isAdmin ? countDraftAndVerified() : Promise.resolve(0),
   ])
 
   const jenisOptions = jenisList.map((j) => ({ value: j.id, label: j.nama }))
+  const rekeningOptions = rekeningList.map((r) => ({ value: r.id, label: `${r.nama_bank} — ${r.nomor_rekening}` }))
 
   return (
     <div className="flex flex-col gap-6">
@@ -64,7 +68,7 @@ export default async function PenerimaanPage({
       />
 
       <Suspense>
-        <PenerimaanFilters jenisOptions={jenisOptions} />
+        <PenerimaanFilters jenisOptions={jenisOptions} rekeningOptions={rekeningOptions} />
       </Suspense>
 
       <Suspense>

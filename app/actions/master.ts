@@ -257,6 +257,51 @@ export async function toggleRekeningAktif(id: string, is_active: boolean): Promi
   return { ok: true, data: undefined }
 }
 
+export async function listSaldoAwal(rekeningId?: string) {
+  const sb = await createClient()
+  let q = sb
+    .from("saldo_awal_rekening")
+    .select("id, rekening_bank_id, tahun, saldo, keterangan")
+    .order("tahun", { ascending: false })
+  if (rekeningId) q = q.eq("rekening_bank_id", rekeningId)
+  const { data, error } = await q
+  if (error) return []
+  return data
+}
+
+export async function upsertSaldoAwal(input: {
+  rekening_bank_id: string
+  tahun: number
+  saldo: number
+  keterangan?: string
+}): Promise<ActionResult> {
+  const profile = await requireRole(["ADMIN"])
+  const sb = await createClient()
+  const { error } = await sb.from("saldo_awal_rekening").upsert(
+    {
+      rekening_bank_id: input.rekening_bank_id,
+      tahun: input.tahun,
+      saldo: input.saldo,
+      keterangan: input.keterangan || null,
+      created_by: profile.id,
+      updated_by: profile.id,
+    },
+    { onConflict: "rekening_bank_id,tahun" }
+  )
+  if (error) return { ok: false, pesan: error.message }
+  revalidatePath("/rekening-bank")
+  return { ok: true, data: undefined }
+}
+
+export async function deleteSaldoAwal(id: string): Promise<ActionResult> {
+  await requireRole(["ADMIN"])
+  const sb = await createClient()
+  const { error } = await sb.from("saldo_awal_rekening").delete().eq("id", id)
+  if (error) return { ok: false, pesan: error.message }
+  revalidatePath("/rekening-bank")
+  return { ok: true, data: undefined }
+}
+
 // ─── Jenis Pemindahan Kas ─────────────────────────────────────────────────────
 
 export async function listJenisPemindahan() {

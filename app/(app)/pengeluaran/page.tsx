@@ -4,7 +4,7 @@ import { getCurrentProfile } from "@/lib/session"
 import { redirect } from "next/navigation"
 import { listPengeluaran } from "@/app/actions/pengeluaran"
 import { PageHeader } from "@/components/page-header"
-import { Plus } from "lucide-react"
+import { Plus, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { PengeluaranTable } from "./_components/pengeluaran-table"
 import { PengeluaranFilters } from "./_components/pengeluaran-filters"
@@ -52,10 +52,16 @@ export default async function PengeluaranPage({
         description={`${count} transaksi`}
         action={
           isOperator || isAdmin ? (
-            <Button size="sm" render={<Link href="/pengeluaran/baru" />}>
-              <Plus className="h-4 w-4" />
-              Input Baru
-            </Button>
+            <div className="flex gap-2">
+              <Button size="sm" variant="ghost" render={<Link href="/pengeluaran/import" />}>
+                <Upload className="h-4 w-4" />
+                Import
+              </Button>
+              <Button size="sm" render={<Link href="/pengeluaran/baru" />}>
+                <Plus className="h-4 w-4" />
+                Input Baru
+              </Button>
+            </div>
           ) : undefined
         }
       />

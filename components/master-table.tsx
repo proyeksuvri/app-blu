@@ -44,10 +44,11 @@ type Props<T extends MasterRow> = {
   dialogTitle: string
   form: (row: T | null, onDone: () => void) => ReactNode
   onToggleAktif: (id: string, is_active: boolean) => Promise<{ ok: boolean; pesan?: string }>
+  extraActions?: (row: T) => ReactNode
 }
 
 export function MasterTable<T extends MasterRow>({
-  data, columns, dialogTitle, form, onToggleAktif
+  data, columns, dialogTitle, form, onToggleAktif, extraActions
 }: Props<T>) {
   const [open, setOpen] = useState(false)
   const [selected, setSelected] = useState<T | null>(null)
@@ -108,6 +109,7 @@ export function MasterTable<T extends MasterRow>({
                     ))}
                     <TableCell className="py-3">
                       <div className="flex justify-end gap-1">
+                        {extraActions && extraActions(row)}
                         <Button
                           variant="ghost" size="sm"
                           onClick={() => openEdit(row)}

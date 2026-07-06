@@ -12,6 +12,19 @@ export type RekeningBreakdown  = { kode: string; namaBank: string; namaRekening:
 export type UnitKerjaBreakdown = { kode: string; nama: string; total: number; pct: number }
 export type MetodeBreakdown    = { kode: string; nama: string; total: number; pct: number }
 export type DailyPoint         = { tanggal: string; hari: number; total: number }
+export type BulanPoint         = { bulan: number; namaBulan: string; penerimaan: number; pengeluaran: number; saldo: number }
+export type RekeningKoranResult = {
+  rekeningId: string
+  namaBank: string
+  namaRekening: string
+  nomorRekening: string
+  tahun: number
+  saldoAwal: number
+  totalPenerimaan: number
+  totalPengeluaran: number
+  saldoAkhir: number
+  perBulan: BulanPoint[]
+}
 export type RekapBulananFullResult = {
   tahun: number; bulan: number
   total: number; count: number; activeRekeningCount: number
@@ -66,7 +79,8 @@ export async function rekapBulanan(tahun: number, bulan: number) {
   const sb = await createClient()
 
   const tglAwal = `${tahun}-${String(bulan).padStart(2, "0")}-01`
-  const tglAkhir = new Date(tahun, bulan, 0).toISOString().split("T")[0]
+  const lastDay = new Date(tahun, bulan, 0).getDate()
+  const tglAkhir = `${tahun}-${String(bulan).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`
 
   const { data, error } = await sb
     .from("penerimaan")
@@ -159,8 +173,9 @@ export async function rekapBulananFull(tahun: number, bulan: number): Promise<Re
 
   const sb = await createClient()
   const tglAwal = `${tahun}-${String(bulan).padStart(2, "0")}-01`
-  const tglAkhir = new Date(tahun, bulan, 0).toISOString().split("T")[0]
-  const daysInMonth = new Date(tahun, bulan, 0).getDate()
+  const lastDay = new Date(tahun, bulan, 0).getDate()
+  const tglAkhir = `${tahun}-${String(bulan).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`
+  const daysInMonth = lastDay
 
   const bulananQ = sb
     .from("penerimaan")
@@ -276,5 +291,70 @@ export async function rekapBulananFull(tahun: number, bulan: number): Promise<Re
     activeRekeningCount: byRekening.length,
     dailyAverage: Math.round(total / daysInMonth),
     byKategori, byRekening, byUnit, byMetode, dailyTrend,
+  }
+}
+
+const BULAN_NAMA = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"]
+
+export async function rekapRekeningKoran(rekeningId: string, tahun: number): Promise<RekeningKoranResult | null> {
+  await requireRole(["ADMIN", "PIMPINAN"])
+  if (!rekeningId || tahun < 2000 || tahun > 2100) return null
+
+  const sb = await createClient()
+  const tglAwal = `${tahun}-01-01`
+  const tglAkhir = `${tahun}-12-31`
+
+  const [rekeningRes, saldoAwalRes, penerimaanRes, pengeluaranRes] = await Promise.all([
+    sb.from("rekening_bank").select("id, kode, nama_bank, nama_rekening, nomor_rekening").eq("id", rekeningId).single(),
+    sb.from("saldo_awal_rekening").select("saldo").eq("rekening_bank_id", rekeningId).eq("tahun", tahun).maybeSingle(),
+    sb.from("penerimaan").select("jumlah, tanggal_terima").eq("rekening_bank_id", rekeningId).eq("status", "verified").gte("tanggal_terima", tglAwal).lte("tanggal_terima", tglAkhir),
+    sb.from("pengeluaran").select("jumlah, tanggal").eq("rekening_bank_id", rekeningId).eq("status", "verified").gte("tanggal", tglAwal).lte("tanggal", tglAkhir),
+  ])
+
+  if (rekeningRes.error || !rekeningRes.data) return null
+
+  const rek = rekeningRes.data
+  const saldoAwal = Number(saldoAwalRes.data?.saldo ?? 0)
+
+  // Hitung per bulan
+  const penerimaanPerBulan = new Array(12).fill(0) as number[]
+  const pengeluaranPerBulan = new Array(12).fill(0) as number[]
+
+  for (const row of penerimaanRes.data ?? []) {
+    const bln = new Date(row.tanggal_terima + "T00:00:00").getMonth() // 0-indexed
+    penerimaanPerBulan[bln] += Number(row.jumlah)
+  }
+  for (const row of pengeluaranRes.data ?? []) {
+    const bln = new Date(row.tanggal + "T00:00:00").getMonth()
+    pengeluaranPerBulan[bln] += Number(row.jumlah)
+  }
+
+  const totalPenerimaan = penerimaanPerBulan.reduce((s, v) => s + v, 0)
+  const totalPengeluaran = pengeluaranPerBulan.reduce((s, v) => s + v, 0)
+
+  // Hitung saldo kumulatif per bulan
+  let saldoBerjalan = saldoAwal
+  const perBulan: BulanPoint[] = Array.from({ length: 12 }, (_, i) => {
+    saldoBerjalan += penerimaanPerBulan[i] - pengeluaranPerBulan[i]
+    return {
+      bulan: i + 1,
+      namaBulan: BULAN_NAMA[i],
+      penerimaan: penerimaanPerBulan[i],
+      pengeluaran: pengeluaranPerBulan[i],
+      saldo: saldoBerjalan,
+    }
+  })
+
+  return {
+    rekeningId: rek.id,
+    namaBank: rek.nama_bank,
+    namaRekening: rek.nama_rekening,
+    nomorRekening: rek.nomor_rekening,
+    tahun,
+    saldoAwal,
+    totalPenerimaan,
+    totalPengeluaran,
+    saldoAkhir: saldoAwal + totalPenerimaan - totalPengeluaran,
+    perBulan,
   }
 }
