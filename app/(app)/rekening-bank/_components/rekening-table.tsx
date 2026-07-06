@@ -176,7 +176,7 @@ function SaldoAwalDialog({ row, open, onClose }: { row: Row; open: boolean; onCl
             <Field data-invalid={!!errors.tahun}>
               <FieldLabel>Tahun</FieldLabel>
               <Controller name="tahun" control={control} render={({ field }) => (
-                <Select value={String(field.value)} onValueChange={(v) => field.onChange(parseInt(v))}>
+                <Select value={String(field.value)} onValueChange={(v) => v && field.onChange(parseInt(v))}>
                   <SelectTrigger className="bg-muted/50 border-border text-foreground">
                     <SelectValue />
                   </SelectTrigger>

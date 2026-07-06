@@ -84,7 +84,7 @@ export function LaporanRekeningKoranClient({
       {/* Controls */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3">
-          <Select value={rekeningId} onValueChange={handleRekening} disabled={pending}>
+          <Select value={rekeningId} onValueChange={(v) => v && handleRekening(v)} disabled={pending}>
             <SelectTrigger className="w-64 bg-muted/50 border-border text-foreground">
               <SelectValue placeholder="Pilih rekening..." />
             </SelectTrigger>
@@ -96,7 +96,7 @@ export function LaporanRekeningKoranClient({
               ))}
             </SelectContent>
           </Select>
-          <Select value={String(tahun)} onValueChange={(v) => handleTahun(parseInt(v))} disabled={pending}>
+          <Select value={String(tahun)} onValueChange={(v) => v && handleTahun(parseInt(v))} disabled={pending}>
             <SelectTrigger className="w-28 bg-muted/50 border-border text-foreground">
               <SelectValue />
             </SelectTrigger>
