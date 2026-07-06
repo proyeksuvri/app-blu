@@ -52,6 +52,7 @@ function formatBytes(bytes: number) {
 }
 
 function DokumenUploadSection({ rekeningId, tahun, isAdmin }: { rekeningId: string; tahun: number; isAdmin?: boolean }) {
+  const [panelOpen, setPanelOpen] = useState(false)
   const [docs, setDocs] = useState<DokumenRekeningKoran[]>([])
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -164,13 +165,37 @@ function DokumenUploadSection({ rekeningId, tahun, isAdmin }: { rekeningId: stri
         </div>
       )}
 
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <p className="text-xs font-medium text-muted-foreground">Dokumen Rekening Koran</p>
-          {loading && <span className="text-xs text-muted-foreground">Memuat...</span>}
-        </div>
+      <div className="rounded-xl border border-border overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setPanelOpen((v) => !v)}
+          className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <FileText className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium text-foreground">Dokumen Rekening Koran</span>
+            {docs.length > 0 && (
+              <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                {docs.length}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {loading && <span className="text-xs text-muted-foreground">Memuat...</span>}
+            {panelOpen ? (
+              <ChevronUp className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            )}
+          </div>
+        </button>
+
+
+        {panelOpen && (
+        <div className="border-t border-border p-4 flex flex-col gap-3">
 
         {/* Form Upload */}
+
         {isAdmin && (
           <form onSubmit={handleUpload} className="rounded-xl border border-dashed border-border p-4 flex flex-col gap-3">
             <div
@@ -291,6 +316,7 @@ function DokumenUploadSection({ rekeningId, tahun, isAdmin }: { rekeningId: stri
             </Table>
           </div>
         )}
+        </div>)}
       </div>
     </>
   )
