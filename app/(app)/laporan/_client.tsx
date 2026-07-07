@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { PenerimaanStatusBadge } from "@/components/penerimaan-status-badge"
 import { EmptyState } from "@/components/empty-state"
-import { rekapHarian, rekapBulanan, rekapPerRekening, rekapBulananFull, rekapRekeningKoran, type RekeningKoranResult } from "@/app/actions/laporan"
+import { rekapHarian, rekapBulanan, rekapPerRekening, rekapBulananFull, rekapRekeningKoran, rekapPerRekeningByJenis, type RekeningKoranResult, type RekeningJenisRow } from "@/app/actions/laporan"
 import { listDokumenRekeningKoran, uploadDokumenRekeningKoran, getDokumenDownloadUrl, deleteDokumenRekeningKoran, type DokumenRekeningKoran } from "@/app/actions/dokumen-rekening-koran"
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious, PaginationEllipsis } from "@/components/ui/pagination"
@@ -457,9 +457,20 @@ export function LaporanClient({ initialHarian, initialBulanan, initialRekening, 
   async function exportRekeningPDF() {
     setPdfLoadingRekening(true)
     try {
+      const [jenisResult] = await Promise.all([
+        rekapPerRekeningByJenis(tglAwal, tglAkhir),
+      ])
       const { pdf } = await import("@react-pdf/renderer")
       const { LaporanRekeningPDF } = await import("@/components/pdf/laporan-rekening-pdf")
-      const blob = await pdf(<LaporanRekeningPDF tglAwal={tglAwal} tglAkhir={tglAkhir} byRekening={byRekening} total={rekeningTotal} />).toBlob()
+      const blob = await pdf(
+        <LaporanRekeningPDF
+          tglAwal={tglAwal}
+          tglAkhir={tglAkhir}
+          byRekening={byRekening}
+          total={rekeningTotal}
+          byJenis={jenisResult.rows as RekeningJenisRow[]}
+        />
+      ).toBlob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = url

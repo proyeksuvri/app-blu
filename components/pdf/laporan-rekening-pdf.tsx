@@ -1,6 +1,7 @@
 import { Document, Page, Text, View, StyleSheet, Svg, Rect, G } from "@react-pdf/renderer"
 import type { FC, ReactNode } from "react"
 import "@/components/pdf/register-fonts"
+import type { RekeningJenisRow } from "@/app/actions/laporan"
 
 type SvgTxtProps = { x?: number | string; y?: number | string; fill?: string; fontSize?: number; fontFamily?: string; textAnchor?: "start" | "middle" | "end"; children?: ReactNode }
 const SvgText = Text as unknown as FC<SvgTxtProps>
@@ -17,6 +18,7 @@ const C = {
   textMuted: "#64748b",
   white:     "#ffffff",
   rowAlt:    "#f1f5f9",
+  groupBg:   "#eef2f7",
   chart:     ["#2563eb","#0ea5e9","#7c3aed","#059669","#d97706"] as string[],
 }
 
@@ -42,9 +44,11 @@ const s = StyleSheet.create({
   tblHCell:    { color: C.white, fontSize: 7.5, fontFamily: "Geist", fontWeight: 700 },
   tblRow:      { flexDirection: "row", paddingHorizontal: 10, paddingVertical: 4, borderBottomWidth: 0.5, borderBottomColor: C.border },
   tblRowAlt:   { backgroundColor: C.rowAlt },
+  tblGroupRow: { flexDirection: "row", paddingHorizontal: 10, paddingVertical: 4, backgroundColor: C.groupBg, borderBottomWidth: 0.5, borderBottomColor: C.border },
   tblCell:     { fontSize: 8, color: C.text },
   tblMuted:    { fontSize: 8, color: C.textMuted },
   tblBold:     { fontFamily: "Geist", fontWeight: 700 },
+  tblMono:     { fontFamily: "Courier", fontSize: 7.5 },
 
   totalRow:    { flexDirection: "row", backgroundColor: C.brand, paddingHorizontal: 10, paddingVertical: 6, marginTop: 1, borderRadius: 3 },
   totalLabel:  { flex: 1, fontSize: 8, fontFamily: "Geist", fontWeight: 700, color: C.white },
@@ -96,10 +100,27 @@ function RekeningBarChart({ data, total }: { data: Array<RekeningRow & { pct: nu
   )
 }
 
+// Group rows by rekening for display
+function groupByRekening(rows: RekeningJenisRow[]): Array<{
+  key: string; nama_bank: string; nomor_rekening: string; items: RekeningJenisRow[]
+}> {
+  const map: Record<string, { nama_bank: string; nomor_rekening: string; items: RekeningJenisRow[] }> = {}
+  for (const row of rows) {
+    const key = row.nomor_rekening
+    if (!map[key]) map[key] = { nama_bank: row.nama_bank, nomor_rekening: row.nomor_rekening, items: [] }
+    map[key].items.push(row)
+  }
+  return Object.entries(map).map(([key, v]) => ({ key, ...v }))
+}
+
 export function LaporanRekeningPDF({
-  tglAwal, tglAkhir, byRekening, total,
+  tglAwal, tglAkhir, byRekening, total, byJenis,
 }: {
-  tglAwal: string; tglAkhir: string; byRekening: RekeningRow[]; total: number
+  tglAwal: string
+  tglAkhir: string
+  byRekening: RekeningRow[]
+  total: number
+  byJenis?: RekeningJenisRow[]
 }) {
   const fmt = (tgl: string) =>
     new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "long", year: "numeric" })
@@ -114,24 +135,37 @@ export function LaporanRekeningPDF({
   const topBank = dataWithPct[0]?.nama_bank ?? "—"
   const topPct  = dataWithPct[0]?.pct ?? 0
 
+  const jenisGroups = byJenis ? groupByRekening(byJenis) : []
+
+  const PageHeader = () => (
+    <View>
+      <Text style={s.orgName}>BLU UIN Palopo</Text>
+      <Text style={s.orgSub}>Universitas Islam Negeri Palopo — Badan Layanan Umum</Text>
+      <Text style={s.reportTitle}>LAPORAN PENERIMAAN DANA PER REKENING</Text>
+      <View style={s.periodRow}>
+        <Text style={s.periodText}>Periode: {fmt(tglAwal)} — {fmt(tglAkhir)}</Text>
+        <Text style={s.periodText}>Digenerate: {generatedAt}</Text>
+      </View>
+      <View style={s.divider} />
+    </View>
+  )
+
+  const PageFooter = () => (
+    <View style={s.footer} fixed>
+      <Text>BLU UIN Palopo — Rekap Rekening {fmt(tglAwal)} s.d. {fmt(tglAkhir)}</Text>
+      <Text render={({ pageNumber, totalPages }) => `Halaman ${pageNumber} dari ${totalPages}`} />
+    </View>
+  )
+
   return (
     <Document
       title={`Rekap Rekening ${tglAwal} sd ${tglAkhir} — BLU UIN Palopo`}
       author="BLU UIN Palopo"
       subject="Laporan Penerimaan Dana per Rekening"
     >
+      {/* ───── Halaman 1: Ringkasan per rekening ───── */}
       <Page size="A4" style={s.page}>
-        {/* Header */}
-        <View>
-          <Text style={s.orgName}>BLU UIN Palopo</Text>
-          <Text style={s.orgSub}>Universitas Islam Negeri Palopo — Badan Layanan Umum</Text>
-          <Text style={s.reportTitle}>LAPORAN PENERIMAAN DANA PER REKENING</Text>
-          <View style={s.periodRow}>
-            <Text style={s.periodText}>Periode: {fmt(tglAwal)} — {fmt(tglAkhir)}</Text>
-            <Text style={s.periodText}>Digenerate: {generatedAt}</Text>
-          </View>
-          <View style={s.divider} />
-        </View>
+        <PageHeader />
 
         {/* Stat cards */}
         <View style={s.cardsRow}>
@@ -157,7 +191,7 @@ export function LaporanRekeningPDF({
           </View>
         )}
 
-        {/* Table */}
+        {/* Table ringkasan rekening */}
         <View style={s.section}>
           <Text style={s.sectionTitle}>Rincian per Rekening Bank</Text>
           {dataWithPct.length === 0 ? (
@@ -176,7 +210,7 @@ export function LaporanRekeningPDF({
                 <View key={r.kode} style={[s.tblRow, i % 2 === 1 ? s.tblRowAlt : {}]}>
                   <Text style={[s.tblCell, s.tblBold, { width: 95 }]}>{r.nama_bank}</Text>
                   <Text style={[s.tblCell, { flex: 1 }]}>{r.nama_rekening}</Text>
-                  <Text style={[s.tblMuted, { width: 90, fontFamily: "Courier", fontSize: 7.5 }]}>{r.nomor_rekening}</Text>
+                  <Text style={[s.tblMuted, s.tblMono, { width: 90 }]}>{r.nomor_rekening}</Text>
                   <Text style={[s.tblMuted, { width: 36, textAlign: "right" }]}>{r.pct}%</Text>
                   <View style={{ width: 52, paddingTop: 2 }}>
                     <PctBar pct={r.pct} color={C.chart[i % C.chart.length]} />
@@ -192,12 +226,63 @@ export function LaporanRekeningPDF({
           )}
         </View>
 
-        {/* Footer */}
-        <View style={s.footer} fixed>
-          <Text>BLU UIN Palopo — Rekap Rekening {fmt(tglAwal)} s.d. {fmt(tglAkhir)}</Text>
-          <Text render={({ pageNumber, totalPages }) => `Halaman ${pageNumber} dari ${totalPages}`} />
-        </View>
+        <PageFooter />
       </Page>
+
+      {/* ───── Halaman 2: Pendapatan berdasarkan jenis penerimaan ───── */}
+      {byJenis && byJenis.length > 0 && (
+        <Page size="A4" style={s.page}>
+          <PageHeader />
+
+          <View style={s.section}>
+            <Text style={s.sectionTitle}>Pendapatan Berdasarkan Jenis Penerimaan</Text>
+
+            {/* Tabel header */}
+            <View style={s.tblHeader}>
+              <Text style={[s.tblHCell, { width: 90 }]}>Nama Bank</Text>
+              <Text style={[s.tblHCell, { width: 100 }]}>Nomor Rekening</Text>
+              <Text style={[s.tblHCell, { flex: 1 }]}>Jenis Penerimaan</Text>
+              <Text style={[s.tblHCell, { width: 60 }]}>Kode</Text>
+              <Text style={[s.tblHCell, { width: 90, textAlign: "right" }]}>Nilai Penerimaan</Text>
+            </View>
+
+            {jenisGroups.map((group) => {
+              const groupTotal = group.items.reduce((s, r) => s + r.total, 0)
+              return (
+                <View key={group.key}>
+                  {/* Group header rekening */}
+                  <View style={s.tblGroupRow}>
+                    <Text style={[s.tblCell, s.tblBold, { width: 90 }]}>{group.nama_bank}</Text>
+                    <Text style={[s.tblMuted, s.tblMono, { width: 100 }]}>{group.nomor_rekening}</Text>
+                    <Text style={[s.tblCell, s.tblBold, { flex: 1 }]}>Subtotal</Text>
+                    <Text style={[s.tblCell, { width: 60 }]}></Text>
+                    <Text style={[s.tblCell, s.tblBold, { width: 90, textAlign: "right" }]}>{rupiah(groupTotal)}</Text>
+                  </View>
+
+                  {/* Baris per jenis */}
+                  {group.items.map((row, idx) => (
+                    <View key={`${group.key}-${row.kode_jenis}`} style={[s.tblRow, idx % 2 === 1 ? s.tblRowAlt : {}]}>
+                      <Text style={[s.tblMuted, { width: 90 }]}></Text>
+                      <Text style={[s.tblMuted, { width: 100 }]}></Text>
+                      <Text style={[s.tblCell, { flex: 1 }]}>{row.nama_jenis}</Text>
+                      <Text style={[s.tblMono, s.tblMuted, { width: 60 }]}>{row.kode_jenis}</Text>
+                      <Text style={[s.tblCell, { width: 90, textAlign: "right" }]}>{rupiah(row.total)}</Text>
+                    </View>
+                  ))}
+                </View>
+              )
+            })}
+
+            {/* Total keseluruhan */}
+            <View style={s.totalRow}>
+              <Text style={s.totalLabel}>TOTAL PENERIMAAN</Text>
+              <Text style={s.totalValue}>{rupiah(total)}</Text>
+            </View>
+          </View>
+
+          <PageFooter />
+        </Page>
+      )}
     </Document>
   )
 }

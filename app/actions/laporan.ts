@@ -358,3 +358,81 @@ export async function rekapRekeningKoran(rekeningId: string, tahun: number): Pro
     perBulan,
   }
 }
+
+export type RekeningJenisRow = {
+  nama_bank: string
+  nomor_rekening: string
+  kode_jenis: string
+  nama_jenis: string
+  total: number
+}
+
+export async function rekapPerRekeningByJenis(
+  tglAwal: string,
+  tglAkhir: string
+): Promise<{ rows: RekeningJenisRow[]; total: number }> {
+  await requireRole(["ADMIN", "PIMPINAN"])
+  if (!ISO_DATE_RE.test(tglAwal) || !ISO_DATE_RE.test(tglAkhir)) return { rows: [], total: 0 }
+  const diffMs = new Date(tglAkhir).getTime() - new Date(tglAwal).getTime()
+  if (diffMs < 0 || diffMs > 366 * 24 * 60 * 60 * 1000) return { rows: [], total: 0 }
+
+  const sb = await createClient()
+
+  const BATCH = 1000
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const allRows: any[] = []
+  let offset = 0
+  const baseQ = sb
+    .from("penerimaan")
+    .select(`
+      jumlah,
+      rekening:rekening_bank(nama_bank, nomor_rekening),
+      jenis:jenis_pendapatan(kode, nama)
+    `)
+    .gte("tanggal_terima", tglAwal)
+    .lte("tanggal_terima", tglAkhir)
+    .eq("status", "verified")
+
+  while (true) {
+    const { data: batch, error } = await baseQ.range(offset, offset + BATCH - 1)
+    if (error) return { rows: [], total: 0 }
+    if (!batch || batch.length === 0) break
+    allRows.push(...batch)
+    if (batch.length < BATCH) break
+    offset += BATCH
+  }
+
+  const resolve = <T>(v: T | T[] | null | undefined): T | null =>
+    v == null ? null : Array.isArray(v) ? (v[0] ?? null) : v
+
+  // Group by rekening kode + jenis kode
+  const map: Record<string, RekeningJenisRow> = {}
+  let total = 0
+
+  for (const r of allRows) {
+    const jumlah = Number(r.jumlah)
+    const rek = resolve(r.rekening) as { nama_bank: string; nomor_rekening: string } | null
+    const jenis = resolve(r.jenis) as { kode: string; nama: string } | null
+    if (!rek || !jenis) continue
+    const key = `${rek.nomor_rekening}__${jenis.kode}`
+    if (!map[key]) {
+      map[key] = {
+        nama_bank: rek.nama_bank,
+        nomor_rekening: rek.nomor_rekening,
+        kode_jenis: jenis.kode,
+        nama_jenis: jenis.nama,
+        total: 0,
+      }
+    }
+    map[key].total += jumlah
+    total += jumlah
+  }
+
+  const rows = Object.values(map).sort((a, b) => {
+    if (a.nama_bank !== b.nama_bank) return a.nama_bank.localeCompare(b.nama_bank)
+    if (a.nomor_rekening !== b.nomor_rekening) return a.nomor_rekening.localeCompare(b.nomor_rekening)
+    return b.total - a.total
+  })
+
+  return { rows, total }
+}
