@@ -330,3 +330,42 @@ export async function voidPenerimaan(id: string, alasan: string): Promise<Action
   revalidatePath(`/penerimaan/${id}`)
   return { ok: true, data: undefined }
 }
+
+export async function unverifyPenerimaan(id: string): Promise<ActionResult> {
+  const profile = await requireRole(["ADMIN"])
+  const sb = await createClient()
+  const { data: existing } = await sb.from("penerimaan").select("status").eq("id", id).single()
+  if (!existing) return { ok: false, pesan: "Penerimaan tidak ditemukan" }
+  if (existing.status !== "verified") return { ok: false, pesan: "Hanya transaksi terverifikasi yang dapat dikembalikan ke draft" }
+  const { error } = await sb
+    .from("penerimaan")
+    .update({
+      status: "draft",
+      verified_by: null,
+      verified_at: null,
+      updated_by: profile.id,
+    })
+    .eq("id", id)
+    .eq("status", "verified")
+  if (error) return { ok: false, pesan: error.message }
+  await invalidateDashboardCache()
+  revalidatePath("/penerimaan")
+  revalidatePath(`/penerimaan/${id}`)
+  return { ok: true, data: undefined }
+}
+
+export async function bulkUnverifyPenerimaan(ids: string[]): Promise<ActionResult<{ berhasil: number; gagal: number }>> {
+  const profile = await requireRole(["ADMIN"])
+  if (ids.length === 0) return { ok: false, pesan: "Tidak ada transaksi dipilih" }
+  if (ids.length > 100) return { ok: false, pesan: "Maksimal 100 transaksi sekaligus" }
+  const sb = await createClient()
+  const { error, count } = await sb
+    .from("penerimaan")
+    .update({ status: "draft", verified_by: null, verified_at: null, updated_by: profile.id })
+    .in("id", ids)
+    .eq("status", "verified")
+  if (error) return { ok: false, pesan: error.message }
+  await invalidateDashboardCache()
+  revalidatePath("/penerimaan")
+  return { ok: true, data: { berhasil: count ?? ids.length, gagal: 0 } }
+}

@@ -7,7 +7,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
-import { verifyPenerimaan, voidPenerimaan, deletePenerimaan } from "@/app/actions/penerimaan"
+import { verifyPenerimaan, voidPenerimaan, deletePenerimaan, unverifyPenerimaan } from "@/app/actions/penerimaan"
+import { RotateCcw } from "lucide-react"
 import Link from "next/link"
 
 type Props = {
@@ -21,6 +22,7 @@ type Props = {
 export function PenerimaanActions({ id, status, isAdmin, canEdit, isOwner }: Props) {
   const router = useRouter()
   const [voidOpen, setVoidOpen] = useState(false)
+  const [unverifyOpen, setUnverifyOpen] = useState(false)
   const [alasan, setAlasan] = useState("")
   const [pending, startTransition] = useTransition()
 
@@ -29,6 +31,16 @@ export function PenerimaanActions({ id, status, isAdmin, canEdit, isOwner }: Pro
       const result = await verifyPenerimaan(id)
       if (!result.ok) { toast.error(result.pesan); return }
       toast.success("Transaksi berhasil diverifikasi")
+    })
+  }
+
+  function handleUnverify() {
+    startTransition(async () => {
+      const result = await unverifyPenerimaan(id)
+      if (!result.ok) { toast.error(result.pesan); return }
+      toast.success("Transaksi dikembalikan ke draft")
+      setUnverifyOpen(false)
+      router.refresh()
     })
   }
 
@@ -73,6 +85,19 @@ export function PenerimaanActions({ id, status, isAdmin, canEdit, isOwner }: Pro
       )}
 
       {status === "verified" && isAdmin && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setUnverifyOpen(true)}
+          disabled={pending}
+          className="gap-1.5 border-amber-500/50 text-amber-500 hover:bg-amber-500/10 hover:text-amber-400"
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+          Kembalikan ke Draft
+        </Button>
+      )}
+
+      {status === "verified" && isAdmin && (
         <Button variant="destructive" size="sm" onClick={() => setVoidOpen(true)}>
           Void
         </Button>
@@ -83,6 +108,35 @@ export function PenerimaanActions({ id, status, isAdmin, canEdit, isOwner }: Pro
           Hapus
         </Button>
       )}
+
+      {/* Dialog kembalikan ke draft */}
+      <Dialog open={unverifyOpen} onOpenChange={setUnverifyOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Kembalikan ke Draft</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <p className="text-sm text-muted-foreground">
+              Transaksi ini akan dikembalikan ke status <strong>Draft</strong> dan data verifikasi akan dihapus.
+              Tindakan ini dapat dibatalkan dengan memverifikasi ulang.
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="flex-1" onClick={() => setUnverifyOpen(false)}>
+                Batal
+              </Button>
+              <Button
+                size="sm"
+                className="flex-1 gap-1.5 bg-amber-600 hover:bg-amber-700 text-white"
+                onClick={handleUnverify}
+                disabled={pending}
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                {pending ? "Memproses..." : "Ya, Kembalikan ke Draft"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog void */}
       <Dialog open={voidOpen} onOpenChange={setVoidOpen}>

@@ -5,7 +5,7 @@ import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
-import { X, CheckCheck, Trash2, ChevronUpIcon, ChevronDownIcon, ChevronsUpDownIcon, Download } from "lucide-react"
+import { X, CheckCheck, Trash2, ChevronUpIcon, ChevronDownIcon, ChevronsUpDownIcon, Download, RotateCcw, Pencil } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -13,7 +13,8 @@ import { Button } from "@/components/ui/button"
 import { PenerimaanStatusBadge } from "@/components/penerimaan-status-badge"
 import { EmptyState } from "@/components/empty-state"
 import { toast } from "sonner"
-import { bulkVerifyPenerimaan, bulkDeletePenerimaan, verifyAllDraft, exportPenerimaan, deleteAllPenerimaan } from "@/app/actions/penerimaan"
+import { bulkVerifyPenerimaan, bulkDeletePenerimaan, verifyAllDraft, exportPenerimaan, deleteAllPenerimaan, bulkUnverifyPenerimaan } from "@/app/actions/penerimaan"
+
 
 const rupiah = (n: number) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n)
@@ -77,6 +78,10 @@ export function PenerimaanTable({ data, isAdmin, sort, order, totalDraft, totalD
     const row = data.find((r) => r.id === id)
     return row?.status === "draft"
   })
+  const allSelectedAreVerified = selectedArray.length > 0 && selectedArray.every((id) => {
+    const row = data.find((r) => r.id === id)
+    return row?.status === "verified"
+  })
 
   function toggleSelectAll() {
     if (allSelected) {
@@ -104,6 +109,17 @@ export function PenerimaanTable({ data, isAdmin, sort, order, totalDraft, totalD
       } else {
         toast.success(`${berhasil} transaksi berhasil diverifikasi`)
       }
+      setSelected(new Set())
+      router.refresh()
+    })
+  }
+
+  function handleBulkUnverify() {
+    if (!confirm(`Kembalikan ${selected.size} transaksi ke draft? Data verifikasi akan dihapus.`)) return
+    startTransition(async () => {
+      const result = await bulkUnverifyPenerimaan(selectedArray)
+      if (!result.ok) { toast.error(result.pesan); return }
+      toast.success(`${result.data.berhasil} transaksi dikembalikan ke draft`)
       setSelected(new Set())
       router.refresh()
     })
@@ -235,6 +251,7 @@ export function PenerimaanTable({ data, isAdmin, sort, order, totalDraft, totalD
               <TableHead className="text-muted-foreground text-xs">Unit</TableHead>
               <TableHead className="text-xs text-right"><SortHead label="Jumlah" col="jumlah" sort={sort} order={order} /></TableHead>
               <TableHead className="text-muted-foreground text-xs">Status</TableHead>
+              <TableHead className="text-muted-foreground text-xs w-16"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -274,6 +291,18 @@ export function PenerimaanTable({ data, isAdmin, sort, order, totalDraft, totalD
                   <TableCell className="py-3">
                     <PenerimaanStatusBadge status={row.status as "draft" | "verified" | "void"} />
                   </TableCell>
+                  <TableCell className="py-3 w-16">
+                    {row.status === "draft" && (
+                      <Link
+                        href={`/penerimaan/${row.id}/edit`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
+                      >
+                        <Pencil className="h-3 w-3" />
+                        Edit
+                      </Link>
+                    )}
+                  </TableCell>
                 </TableRow>
               )
             })}
@@ -307,6 +336,18 @@ export function PenerimaanTable({ data, isAdmin, sort, order, totalDraft, totalD
             >
               <CheckCheck className="h-3.5 w-3.5" />
               {pending ? "Memverifikasi..." : `Verifikasi (${selected.size})`}
+            </Button>
+          )}
+          {allSelectedAreVerified && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleBulkUnverify}
+              disabled={pending}
+              className="gap-1.5 border-amber-500/50 text-amber-500 hover:bg-amber-500/10 hover:text-amber-400"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              {pending ? "Memproses..." : `Kembalikan ke Draft (${selected.size})`}
             </Button>
           )}
           <Button
