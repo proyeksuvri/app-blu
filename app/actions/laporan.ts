@@ -359,6 +359,63 @@ export async function rekapRekeningKoran(rekeningId: string, tahun: number): Pro
   }
 }
 
+export async function rekapRekeningKoranSemuaBank(tahun: number): Promise<RekeningKoranResult | null> {
+  await requireRole(["ADMIN", "PIMPINAN"])
+  if (tahun < 2000 || tahun > 2100) return null
+
+  const sb = await createClient()
+  const tglAwal = `${tahun}-01-01`
+  const tglAkhir = `${tahun}-12-31`
+
+  const [saldoAwalRes, penerimaanRes, pengeluaranRes] = await Promise.all([
+    sb.from("saldo_awal_rekening").select("saldo").eq("tahun", tahun),
+    sb.from("penerimaan").select("jumlah, tanggal_terima").eq("status", "verified").gte("tanggal_terima", tglAwal).lte("tanggal_terima", tglAkhir),
+    sb.from("pengeluaran").select("jumlah, tanggal").eq("status", "verified").gte("tanggal", tglAwal).lte("tanggal", tglAkhir),
+  ])
+
+  const saldoAwal = (saldoAwalRes.data ?? []).reduce((s, r) => s + Number(r.saldo), 0)
+
+  const penerimaanPerBulan = new Array(12).fill(0) as number[]
+  const pengeluaranPerBulan = new Array(12).fill(0) as number[]
+
+  for (const row of penerimaanRes.data ?? []) {
+    const bln = new Date(row.tanggal_terima + "T00:00:00").getMonth()
+    penerimaanPerBulan[bln] += Number(row.jumlah)
+  }
+  for (const row of pengeluaranRes.data ?? []) {
+    const bln = new Date(row.tanggal + "T00:00:00").getMonth()
+    pengeluaranPerBulan[bln] += Number(row.jumlah)
+  }
+
+  const totalPenerimaan = penerimaanPerBulan.reduce((s, v) => s + v, 0)
+  const totalPengeluaran = pengeluaranPerBulan.reduce((s, v) => s + v, 0)
+
+  let saldoBerjalan = saldoAwal
+  const perBulan: BulanPoint[] = Array.from({ length: 12 }, (_, i) => {
+    saldoBerjalan += penerimaanPerBulan[i] - pengeluaranPerBulan[i]
+    return {
+      bulan: i + 1,
+      namaBulan: BULAN_NAMA[i],
+      penerimaan: penerimaanPerBulan[i],
+      pengeluaran: pengeluaranPerBulan[i],
+      saldo: saldoBerjalan,
+    }
+  })
+
+  return {
+    rekeningId: "__ALL__",
+    namaBank: "Semua Bank",
+    namaRekening: "Agregasi Seluruh Rekening",
+    nomorRekening: "—",
+    tahun,
+    saldoAwal,
+    totalPenerimaan,
+    totalPengeluaran,
+    saldoAkhir: saldoAwal + totalPenerimaan - totalPengeluaran,
+    perBulan,
+  }
+}
+
 export type RekeningJenisRow = {
   nama_bank: string
   nomor_rekening: string

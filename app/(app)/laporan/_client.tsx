@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { PenerimaanStatusBadge } from "@/components/penerimaan-status-badge"
 import { EmptyState } from "@/components/empty-state"
-import { rekapHarian, rekapBulanan, rekapPerRekening, rekapBulananFull, rekapRekeningKoran, rekapPerRekeningByJenis, type RekeningKoranResult, type RekeningJenisRow } from "@/app/actions/laporan"
+import { rekapHarian, rekapBulanan, rekapPerRekening, rekapBulananFull, rekapRekeningKoran, rekapRekeningKoranSemuaBank, rekapPerRekeningByJenis, type RekeningKoranResult, type RekeningJenisRow } from "@/app/actions/laporan"
 import { listDokumenRekeningKoran, uploadDokumenRekeningKoran, getDokumenDownloadUrl, deleteDokumenRekeningKoran, type DokumenRekeningKoran } from "@/app/actions/dokumen-rekening-koran"
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious, PaginationEllipsis } from "@/components/ui/pagination"
@@ -228,13 +228,16 @@ function DokumenUploadSection({ rekeningId, tahun, isAdmin }: { rekeningId: stri
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1">
                 <label className="text-xs text-muted-foreground">Bulan</label>
-                <select
-                  value={bulan}
-                  onChange={(e) => setBulan(parseInt(e.target.value))}
-                  className="h-9 rounded-md border border-border bg-muted/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                >
-                  {BULAN_OPT.map((b, i) => <option key={i + 1} value={i + 1}>{b}</option>)}
-                </select>
+                <Select value={String(bulan)} onValueChange={(v) => v && setBulan(parseInt(v))}>
+                  <SelectTrigger className="h-9 w-full bg-muted/50 border-border text-foreground text-sm px-3">
+                    <span className="flex flex-1 text-left text-sm truncate">{BULAN_OPT[bulan - 1]}</span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BULAN_OPT.map((b, i) => (
+                      <SelectItem key={i + 1} value={String(i + 1)}>{b}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="flex flex-col gap-1">
                 <label className="text-xs text-muted-foreground">Nama Dokumen</label>
@@ -399,7 +402,9 @@ export function LaporanClient({ initialHarian, initialBulanan, initialRekening, 
     setKoranRekeningId(rid)
     setKoranTahun(thn)
     startTransition(async () => {
-      const data = await rekapRekeningKoran(rid, thn)
+      const data = rid === "__ALL__"
+        ? await rekapRekeningKoranSemuaBank(thn)
+        : await rekapRekeningKoran(rid, thn)
       setKoranData(data)
     })
   }
@@ -737,12 +742,17 @@ export function LaporanClient({ initialHarian, initialBulanan, initialRekening, 
               <Select value={koranRekeningId} onValueChange={(v) => v && fetchKoran(v, koranTahun)} disabled={pending}>
                 <SelectTrigger className="w-64 bg-muted/50 border-border text-foreground">
                   <span className="flex flex-1 text-left text-sm truncate">
-                    {rekeningList.find(r => r.id === koranRekeningId)
-                      ? `${rekeningList.find(r => r.id === koranRekeningId)!.nama_bank} — ${rekeningList.find(r => r.id === koranRekeningId)!.nomor_rekening}`
-                      : "Pilih rekening..."}
+                    {koranRekeningId === "__ALL__"
+                      ? "Semua Bank"
+                      : rekeningList.find(r => r.id === koranRekeningId)
+                        ? `${rekeningList.find(r => r.id === koranRekeningId)!.nama_bank} — ${rekeningList.find(r => r.id === koranRekeningId)!.nomor_rekening}`
+                        : "Pilih rekening..."}
                   </span>
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="__ALL__">
+                    <span className="font-medium">Semua Bank</span>
+                  </SelectItem>
                   {rekeningList.map((r) => (
                     <SelectItem key={r.id} value={r.id}>
                       {r.nama_bank} — {r.nomor_rekening}
@@ -852,7 +862,7 @@ export function LaporanClient({ initialHarian, initialBulanan, initialRekening, 
           )}
 
           {/* Divider */}
-          {koranRekeningId && (
+          {koranRekeningId && koranRekeningId !== "__ALL__" && (
             <div className="border-t border-border/50 pt-4 mt-2">
               <DokumenUploadSection rekeningId={koranRekeningId} tahun={koranTahun} isAdmin={isAdmin} />
             </div>
