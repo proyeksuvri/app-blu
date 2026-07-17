@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
@@ -16,12 +16,12 @@ import {
 } from "@/app/actions/import-pengeluaran"
 
 const TEMPLATE_HEADERS = [
-  "tanggal", "kode_unit", "kode_rekening", "jumlah", "uraian"
+  "tanggal", "kode_unit", "kode_rekening", "kode_jenis", "jumlah", "uraian"
 ]
 
 const TEMPLATE_SAMPLE = [
-  ["2026-05-01", "FSH", "BSI", "5000000", "Pembelian ATK Fakultas"],
-  ["2026-05-02", "FTI", "BNI", "2500000", "Biaya perjalanan dinas"],
+  ["2026-05-01", "FSH", "BSI", "JPN-01", "5000000", "Pembelian ATK Fakultas"],
+  ["2026-05-02", "FTI", "BNI", "JPN-02", "2500000", "Biaya perjalanan dinas"],
 ]
 
 async function downloadTemplate() {
@@ -69,6 +69,7 @@ export function ImportPengeluaranClient() {
           tanggal:       formatDate(r["tanggal"] ?? r["tanggal_transaksi"]),
           kode_unit:     String(r["kode_unit"] ?? "").toUpperCase(),
           kode_rekening: String(r["kode_rekening"] ?? "").toUpperCase(),
+          kode_jenis:    r["kode_jenis"] ? String(r["kode_jenis"]).toUpperCase() : undefined,
           jumlah:        Number(r["jumlah"]) || 0,
           uraian:        r["uraian"] ? String(r["uraian"]) : undefined,
         }))
@@ -142,6 +143,7 @@ export function ImportPengeluaranClient() {
                 <TableHead className="text-muted-foreground text-xs">Tgl. Transaksi</TableHead>
                 <TableHead className="text-muted-foreground text-xs">Unit Kerja</TableHead>
                 <TableHead className="text-muted-foreground text-xs">Rekening</TableHead>
+                <TableHead className="text-muted-foreground text-xs">Jenis</TableHead>
                 <TableHead className="text-muted-foreground text-xs text-right">Jumlah</TableHead>
                 <TableHead className="text-muted-foreground text-xs">Uraian</TableHead>
                 <TableHead className="text-muted-foreground text-xs">Status</TableHead>
@@ -151,10 +153,11 @@ export function ImportPengeluaranClient() {
               {preview.map((row) => (
                 <TableRow key={row.baris}
                   className={`border-border/50 ${row.valid ? "hover:bg-muted/20" : "bg-destructive/5"}`}>
-                  <TableCell className="text-xs text-muted-foreground py-2">{row.baris}</TableCell>
+                  <TableCell className="text-xs text-foreground/70 py-2">{row.baris}</TableCell>
                   <TableCell className="text-xs text-foreground/70 py-2">{row.tanggal}</TableCell>
                   <TableCell className="text-xs text-foreground/70 py-2">{row.kode_unit}</TableCell>
                   <TableCell className="text-xs text-foreground/70 py-2">{row.kode_rekening}</TableCell>
+                  <TableCell className="text-xs text-foreground/70 py-2">{row.kode_jenis || "—"}</TableCell>
                   <TableCell className="text-xs text-foreground/70 py-2 text-right">
                     {row.jumlah ? new Intl.NumberFormat("id-ID").format(row.jumlah) : "—"}
                   </TableCell>

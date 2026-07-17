@@ -35,6 +35,7 @@ export async function listPengeluaran(filter: PengeluaranFilter = {}) {
     id, nomor_bukti, tanggal, jumlah, uraian, status,
     unit:unit_kerja(kode, nama),
     rekening:rekening_bank(kode, nama_bank, nama_rekening),
+    jenis:jenis_pengeluaran(kode, nama, kategori:kategori_pengeluaran(nama)),
     creator:profiles!pengeluaran_created_by_fkey(nama_lengkap),
     verified_at, voided_at
   `, { count: "exact" })
@@ -65,6 +66,7 @@ export async function getPengeluaran(id: string) {
     *,
     unit:unit_kerja(id, kode, nama),
     rekening:rekening_bank(id, kode, nama_bank, nama_rekening),
+    jenis:jenis_pengeluaran(id, kode, nama, kategori:kategori_pengeluaran(id, nama)),
     creator:profiles!pengeluaran_created_by_fkey(id, nama_lengkap),
     verifier:profiles!pengeluaran_verified_by_fkey(nama_lengkap),
     voider:profiles!pengeluaran_voided_by_fkey(nama_lengkap)
@@ -78,6 +80,7 @@ export type PengeluaranInput = {
   tanggal: string
   unit_kerja_id?: string
   rekening_bank_id: string
+  jenis_pengeluaran_id?: string
   jumlah: number
   uraian: string
 }
@@ -148,7 +151,6 @@ export async function verifyPengeluaran(id: string): Promise<ActionResult> {
   const profile = await requireRole(["ADMIN"])
   const sb = await createClient()
   
-  // Karena tidak ada trigger verify_pengeluaran seperti penerimaan, kita buat logic manual
   const { error } = await sb
     .from("pengeluaran")
     .update({ 
@@ -161,6 +163,29 @@ export async function verifyPengeluaran(id: string): Promise<ActionResult> {
     
   if (error) return { ok: false, pesan: error.message }
   
+  await invalidateDashboardCache()
+  revalidatePath("/pengeluaran")
+  revalidatePath(`/pengeluaran/${id}`)
+  return { ok: true, data: undefined }
+}
+
+export async function unverifyPengeluaran(id: string): Promise<ActionResult> {
+  const profile = await requireRole(["ADMIN"])
+  const sb = await createClient()
+  const { data: existing } = await sb.from("pengeluaran").select("status").eq("id", id).single()
+  if (!existing) return { ok: false, pesan: "Pengeluaran tidak ditemukan" }
+  if (existing.status !== "verified") return { ok: false, pesan: "Hanya transaksi terverifikasi yang dapat dikembalikan ke draft" }
+  const { error } = await sb
+    .from("pengeluaran")
+    .update({
+      status: "draft",
+      verified_by: null,
+      verified_at: null,
+      updated_by: profile.id,
+    })
+    .eq("id", id)
+    .eq("status", "verified")
+  if (error) return { ok: false, pesan: error.message }
   await invalidateDashboardCache()
   revalidatePath("/pengeluaran")
   revalidatePath(`/pengeluaran/${id}`)
@@ -219,6 +244,22 @@ export async function bulkVerifyPengeluaran(ids: string[]): Promise<ActionResult
     .update({ status: "verified", verified_by: profile.id, verified_at: new Date().toISOString() })
     .in("id", ids)
     .eq("status", "draft")
+  if (error) return { ok: false, pesan: error.message }
+  await invalidateDashboardCache()
+  revalidatePath("/pengeluaran")
+  return { ok: true, data: { berhasil: count ?? ids.length, gagal: 0 } }
+}
+
+export async function bulkUnverifyPengeluaran(ids: string[]): Promise<ActionResult<{ berhasil: number; gagal: number }>> {
+  const profile = await requireRole(["ADMIN"])
+  if (ids.length === 0) return { ok: false, pesan: "Tidak ada transaksi dipilih" }
+  if (ids.length > 100) return { ok: false, pesan: "Maksimal 100 transaksi sekaligus" }
+  const sb = await createClient()
+  const { error, count } = await sb
+    .from("pengeluaran")
+    .update({ status: "draft", verified_by: null, verified_at: null, updated_by: profile.id })
+    .in("id", ids)
+    .eq("status", "verified")
   if (error) return { ok: false, pesan: error.message }
   await invalidateDashboardCache()
   revalidatePath("/pengeluaran")

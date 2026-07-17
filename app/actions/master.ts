@@ -360,3 +360,115 @@ export async function toggleJenisPemindahanAktif(id: string, is_active: boolean)
   revalidatePath("/jenis-pemindahan-kas")
   return { ok: true, data: undefined }
 }
+
+// ─── Kategori Pengeluaran ─────────────────────────────────────────────────────
+
+export async function listKategoriPengeluaran() {
+  const sb = await createClient()
+  const { data, error } = await sb
+    .from("kategori_pengeluaran")
+    .select("*")
+    .order("kode")
+  if (error) return []
+  return data
+}
+
+export async function createKategoriPengeluaran(input: { kode: string; nama: string; keterangan?: string }): Promise<ActionResult> {
+  await requireRole(["ADMIN"])
+  const sb = await createClient()
+  const { error } = await sb.from("kategori_pengeluaran").insert({
+    kode: input.kode.toUpperCase(),
+    nama: input.nama,
+    keterangan: input.keterangan || null,
+  })
+  if (error) return { ok: false, pesan: error.message }
+  await invalidateImportCache()
+  revalidatePath("/kategori-pengeluaran")
+  return { ok: true, data: undefined }
+}
+
+export async function updateKategoriPengeluaran(id: string, input: { kode: string; nama: string; keterangan?: string }): Promise<ActionResult> {
+  await requireRole(["ADMIN"])
+  const sb = await createClient()
+  const { error } = await sb.from("kategori_pengeluaran").update({
+    kode: input.kode.toUpperCase(),
+    nama: input.nama,
+    keterangan: input.keterangan || null,
+  }).eq("id", id)
+  if (error) return { ok: false, pesan: error.message }
+  await invalidateImportCache()
+  revalidatePath("/kategori-pengeluaran")
+  return { ok: true, data: undefined }
+}
+
+export async function toggleKategoriPengeluaranAktif(id: string, is_active: boolean): Promise<ActionResult> {
+  await requireRole(["ADMIN"])
+  const sb = await createClient()
+  const { error } = await sb.from("kategori_pengeluaran").update({ is_active }).eq("id", id)
+  if (error) return { ok: false, pesan: error.message }
+  await invalidateImportCache()
+  revalidatePath("/kategori-pengeluaran")
+  return { ok: true, data: undefined }
+}
+
+// ─── Jenis Pengeluaran ────────────────────────────────────────────────────────
+
+export async function listJenisPengeluaran(kategoriId?: string) {
+  const sb = await createClient()
+  let q = sb
+    .from("jenis_pengeluaran")
+    .select("*, kategori:kategori_pengeluaran(kode, nama)")
+    .order("kode")
+  if (kategoriId) q = q.eq("kategori_pengeluaran_id", kategoriId)
+  const { data, error } = await q
+  if (error) return []
+  return data
+}
+
+export async function createJenisPengeluaran(input: {
+  kategori_pengeluaran_id: string; kode: string; nama: string
+  akun_belanja?: string; keterangan?: string
+}): Promise<ActionResult> {
+  await requireRole(["ADMIN"])
+  const sb = await createClient()
+  const { error } = await sb.from("jenis_pengeluaran").insert({
+    kategori_pengeluaran_id: input.kategori_pengeluaran_id,
+    kode: input.kode.toUpperCase(),
+    nama: input.nama,
+    akun_belanja: input.akun_belanja || null,
+    keterangan: input.keterangan || null,
+  })
+  if (error) return { ok: false, pesan: error.message }
+  await invalidateImportCache()
+  revalidatePath("/jenis-pengeluaran")
+  return { ok: true, data: undefined }
+}
+
+export async function updateJenisPengeluaran(id: string, input: {
+  kategori_pengeluaran_id: string; kode: string; nama: string
+  akun_belanja?: string; keterangan?: string
+}): Promise<ActionResult> {
+  await requireRole(["ADMIN"])
+  const sb = await createClient()
+  const { error } = await sb.from("jenis_pengeluaran").update({
+    kategori_pengeluaran_id: input.kategori_pengeluaran_id,
+    kode: input.kode.toUpperCase(),
+    nama: input.nama,
+    akun_belanja: input.akun_belanja || null,
+    keterangan: input.keterangan || null,
+  }).eq("id", id)
+  if (error) return { ok: false, pesan: error.message }
+  await invalidateImportCache()
+  revalidatePath("/jenis-pengeluaran")
+  return { ok: true, data: undefined }
+}
+
+export async function toggleJenisPengeluaranAktif(id: string, is_active: boolean): Promise<ActionResult> {
+  await requireRole(["ADMIN"])
+  const sb = await createClient()
+  const { error } = await sb.from("jenis_pengeluaran").update({ is_active }).eq("id", id)
+  if (error) return { ok: false, pesan: error.message }
+  await invalidateImportCache()
+  revalidatePath("/jenis-pengeluaran")
+  return { ok: true, data: undefined }
+}

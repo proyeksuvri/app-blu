@@ -20,6 +20,7 @@ const schema = z.object({
   tanggal: z.string().min(1, "Wajib diisi"),
   unit_kerja_id: z.string().uuid("Wajib dipilih"),
   rekening_bank_id: z.string().uuid("Wajib dipilih"),
+  jenis_pengeluaran_id: z.string().uuid().optional().or(z.literal("")),
   jumlah: z.number().positive("Jumlah harus lebih dari 0"),
   uraian: z.string().min(1, "Uraian wajib diisi"),
 })
@@ -45,6 +46,7 @@ export function PengeluaranForm({ editId, defaultValues, lockedUnitId }: Props) 
 
   const [unitList, setUnitList] = useState<OptionItem[]>([])
   const [rekeningList, setRekeningList] = useState<OptionItem[]>([])
+  const [jenisList, setJenisList] = useState<OptionItem[]>([])
 
   const { register, handleSubmit, control, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -60,9 +62,11 @@ export function PengeluaranForm({ editId, defaultValues, lockedUnitId }: Props) 
     Promise.all([
       sb.from("unit_kerja").select("id, kode, nama").eq("is_active", true).order("kode"),
       sb.from("rekening_bank").select("id, kode, nama_bank, nama_rekening").eq("is_active", true).order("kode"),
-    ]).then(([unit, rek]) => {
+      sb.from("jenis_pengeluaran").select("id, kode, nama").eq("is_active", true).order("kode"),
+    ]).then(([unit, rek, jenis]) => {
       setUnitList(unit.data?.map((u) => ({ id: u.id, kode: u.kode, nama: u.nama })) ?? [])
       setRekeningList(rek.data?.map((r) => ({ id: r.id, kode: r.kode, nama: `${r.nama_bank} — ${r.nama_rekening}` })) ?? [])
+      setJenisList(jenis.data?.map((j) => ({ id: j.id, kode: j.kode, nama: j.nama })) ?? [])
     })
   }, [])
 
@@ -72,6 +76,7 @@ export function PengeluaranForm({ editId, defaultValues, lockedUnitId }: Props) 
         tanggal: values.tanggal,
         unit_kerja_id: values.unit_kerja_id,
         rekening_bank_id: values.rekening_bank_id,
+        jenis_pengeluaran_id: values.jenis_pengeluaran_id || undefined,
         jumlah: values.jumlah,
         uraian: values.uraian,
       }
@@ -150,6 +155,21 @@ export function PengeluaranForm({ editId, defaultValues, lockedUnitId }: Props) 
             <p className={sectionTitleCls}>Pembayaran</p>
           </div>
           <div className={sectionBodyCls}>
+            <Field data-invalid={!!errors.jumlah}>
+              <FieldLabel>Jenis Pengeluaran</FieldLabel>
+              <Controller name="jenis_pengeluaran_id" control={control} render={({ field }) => (
+                <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                  <SelectTrigger className={triggerCls}>
+                    <SelectValue>{field.value ? (jenisList.find(j => j.id === field.value) ? `${jenisList.find(j => j.id === field.value)!.kode} — ${jenisList.find(j => j.id === field.value)!.nama}` : "Memuat...") : "Pilih jenis (opsional)"}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">— Tidak dipilih —</SelectItem>
+                    {jenisList.map(j => <SelectItem key={j.id} value={j.id}>{j.kode} — {j.nama}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )} />
+            </Field>
+
             <Field data-invalid={!!errors.jumlah}>
               <FieldLabel>Jumlah<Req /></FieldLabel>
               <Controller name="jumlah" control={control} render={({ field }) => (

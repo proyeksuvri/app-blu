@@ -5,7 +5,7 @@ import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
-import { X, CheckCheck, Trash2, ChevronUpIcon, ChevronDownIcon, ChevronsUpDownIcon } from "lucide-react"
+import { X, CheckCheck, Trash2, ChevronUpIcon, ChevronDownIcon, ChevronsUpDownIcon, RotateCcw } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 import { PenerimaanStatusBadge as StatusBadge } from "@/components/penerimaan-status-badge"
 import { EmptyState } from "@/components/empty-state"
 import { toast } from "sonner"
-import { bulkVerifyPengeluaran, bulkDeletePengeluaran } from "@/app/actions/pengeluaran"
+import { bulkVerifyPengeluaran, bulkDeletePengeluaran, bulkUnverifyPengeluaran } from "@/app/actions/pengeluaran"
 
 const rupiah = (n: number) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n)
@@ -26,6 +26,7 @@ type Row = {
   status: string
   uraian: string | null
   unit: unknown
+  jenis: unknown
 }
 
 type SortKey = "tanggal" | "jumlah" | "nomor_bukti"
@@ -77,6 +78,10 @@ export function PengeluaranTable({ data, isAdmin, sort, order, totalDraft, total
     const row = data.find((r) => r.id === id)
     return row?.status === "draft"
   })
+  const allSelectedAreVerified = selectedArray.length > 0 && selectedArray.every((id) => {
+    const row = data.find((r) => r.id === id)
+    return row?.status === "verified"
+  })
 
   function toggleSelectAll() {
     if (allSelected) {
@@ -104,6 +109,17 @@ export function PengeluaranTable({ data, isAdmin, sort, order, totalDraft, total
       } else {
         toast.success(`${berhasil} transaksi berhasil diverifikasi`)
       }
+      setSelected(new Set())
+      router.refresh()
+    })
+  }
+
+  function handleBulkUnverify() {
+    if (!confirm(`Kembalikan ${selected.size} transaksi ke Draft? Data verifikasi akan dihapus.`)) return
+    startTransition(async () => {
+      const result = await bulkUnverifyPengeluaran(selectedArray.filter((id) => data.find(r => r.id === id)?.status === "verified"))
+      if (!result.ok) { toast.error(result.pesan); return }
+      toast.success(`${result.data.berhasil} transaksi dikembalikan ke draft`)
       setSelected(new Set())
       router.refresh()
     })
@@ -143,6 +159,7 @@ export function PengeluaranTable({ data, isAdmin, sort, order, totalDraft, total
               <TableHead className="text-xs"><SortHead label="Tanggal" col="tanggal" sort={sort} order={order} /></TableHead>
               <TableHead className="text-muted-foreground text-xs">Uraian</TableHead>
               <TableHead className="text-muted-foreground text-xs">Unit</TableHead>
+              <TableHead className="text-muted-foreground text-xs">Jenis</TableHead>
               <TableHead className="text-xs text-right"><SortHead label="Jumlah" col="jumlah" sort={sort} order={order} /></TableHead>
               <TableHead className="text-muted-foreground text-xs">Status</TableHead>
             </TableRow>
@@ -177,6 +194,9 @@ export function PengeluaranTable({ data, isAdmin, sort, order, totalDraft, total
                   </TableCell>
                   <TableCell className="text-sm text-foreground/50 py-3">
                     {(row.unit as { kode?: string } | null)?.kode ?? "—"}
+                  </TableCell>
+                  <TableCell className="text-sm text-foreground/50 py-3">
+                    {(row.jenis as { nama?: string } | null)?.nama ?? "—"}
                   </TableCell>
                   <TableCell className="text-sm text-foreground/80 py-3 text-right font-medium">
                     {rupiah(row.jumlah)}
@@ -217,6 +237,18 @@ export function PengeluaranTable({ data, isAdmin, sort, order, totalDraft, total
             >
               <CheckCheck className="h-3.5 w-3.5" />
               {pending ? "Memverifikasi..." : `Verifikasi (${selected.size})`}
+            </Button>
+          )}
+          {allSelectedAreVerified && isAdmin && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleBulkUnverify}
+              disabled={pending}
+              className="gap-1.5 border-amber-500/50 text-amber-500 hover:bg-amber-500/10 hover:text-amber-400"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              {pending ? "Memproses..." : `Ke Draft (${selected.size})`}
             </Button>
           )}
           <Button

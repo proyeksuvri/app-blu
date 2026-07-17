@@ -5,7 +5,8 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   Building2, LayoutDashboard, BarChart3,
-  Users, LogOut, ChevronRight, Banknote, BookOpen, BookMarked, Search,
+  Users, LogOut, ChevronRight, BookMarked, Search, BookOpen, FolderMinus,
+  TrendingUp, TrendingDown, Database,
 } from "lucide-react"
 import { cn, getInitials } from "@/lib/utils"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -41,6 +42,7 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
@@ -62,70 +64,95 @@ type MenuItem = {
   children?: { label: string; href: string }[]
 }
 
+type MenuGroup = {
+  label: string
+  items: MenuItem[]
+}
+
+function getMenuGroups(role: string): MenuGroup[] {
+  const dashboard: MenuItem = { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard }
+
+  const penerimaan: MenuItem = {
+    label: "Penerimaan", href: "/penerimaan", icon: TrendingUp,
+    children: [
+      { label: "Daftar Penerimaan", href: "/penerimaan" },
+      { label: "Input Baru", href: "/penerimaan/baru" },
+      { label: "Import Excel/CSV", href: "/penerimaan/import" },
+    ],
+  }
+
+  const pengeluaran: MenuItem = {
+    label: "Pengeluaran", href: "/pengeluaran", icon: TrendingDown,
+    children: [
+      { label: "Daftar Pengeluaran", href: "/pengeluaran" },
+      { label: "Input Baru", href: "/pengeluaran/baru" },
+      { label: "Import Excel/CSV", href: "/pengeluaran/import" },
+    ],
+  }
+
+  const masterPendapatan: MenuItem = {
+    label: "Master Pendapatan", href: "/kategori-pendapatan", icon: BookOpen,
+    children: [
+      { label: "Kategori Pendapatan", href: "/kategori-pendapatan" },
+      { label: "Jenis Pendapatan", href: "/jenis-pendapatan" },
+      { label: "Sub Pendapatan", href: "/sub-pendapatan" },
+    ],
+  }
+
+  const masterPengeluaran: MenuItem = {
+    label: "Master Pengeluaran", href: "/kategori-pengeluaran", icon: FolderMinus,
+    children: [
+      { label: "Kategori Pengeluaran", href: "/kategori-pengeluaran" },
+      { label: "Jenis Pengeluaran", href: "/jenis-pengeluaran" },
+    ],
+  }
+
+  const masterUmum: MenuItem = {
+    label: "Master Umum", href: "/unit-kerja", icon: Database,
+    children: [
+      { label: "Unit Kerja", href: "/unit-kerja" },
+      { label: "Rekening Bank", href: "/rekening-bank" },
+      { label: "Jenis Pemindahan Kas", href: "/jenis-pemindahan-kas" },
+    ],
+  }
+
+  const laporan: MenuItem = { label: "Laporan", href: "/laporan", icon: BarChart3 }
+  const pengguna: MenuItem = { label: "Pengguna", href: "/pengguna", icon: Users }
+  const panduan: MenuItem = { label: "Panduan & Aturan", href: "/panduan", icon: BookMarked }
+
+  if (role === "ADMIN") {
+    return [
+      { label: "Umum", items: [dashboard] },
+      { label: "Transaksi", items: [penerimaan, pengeluaran] },
+      { label: "Konfigurasi", items: [masterPendapatan, masterPengeluaran, masterUmum, pengguna] },
+      { label: "Lainnya", items: [laporan, panduan] },
+    ]
+  }
+
+  if (role === "OPERATOR") {
+    return [
+      { label: "Umum", items: [dashboard] },
+      { label: "Transaksi", items: [penerimaan, pengeluaran] },
+      { label: "Lainnya", items: [panduan] },
+    ]
+  }
+
+  if (role === "PIMPINAN") {
+    return [
+      { label: "Umum", items: [dashboard] },
+      { label: "Lainnya", items: [laporan, panduan] },
+    ]
+  }
+
+  return [
+    { label: "Umum", items: [dashboard] },
+    { label: "Lainnya", items: [panduan] },
+  ]
+}
+
+// Legacy helper for CommandSearch
 function getMenuItems(role: string): MenuItem[] {
-  const common: MenuItem[] = [
-    { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  ]
-  const adminMenu: MenuItem[] = [
-    {
-      label: "Penerimaan", href: "/penerimaan", icon: Banknote,
-      children: [
-        { label: "Daftar Penerimaan", href: "/penerimaan" },
-        { label: "Input Baru", href: "/penerimaan/baru" },
-        { label: "Import Excel/CSV", href: "/penerimaan/import" },
-      ],
-    },
-    {
-      label: "Pengeluaran", href: "/pengeluaran", icon: Banknote,
-      children: [
-        { label: "Daftar Pengeluaran", href: "/pengeluaran" },
-        { label: "Input Baru", href: "/pengeluaran/baru" },
-        { label: "Import Excel/CSV", href: "/pengeluaran/import" },
-      ],
-    },
-    {
-      label: "Master Data", href: "/kategori-pendapatan", icon: BookOpen,
-      children: [
-        { label: "Kategori Pendapatan", href: "/kategori-pendapatan" },
-        { label: "Jenis Pendapatan", href: "/jenis-pendapatan" },
-        { label: "Sub Pendapatan", href: "/sub-pendapatan" },
-        { label: "Unit Kerja", href: "/unit-kerja" },
-        { label: "Rekening Bank", href: "/rekening-bank" },
-        { label: "Jenis Pemindahan Kas", href: "/jenis-pemindahan-kas" },
-      ],
-    },
-    { label: "Pengguna", href: "/pengguna", icon: Users },
-    { label: "Laporan", href: "/laporan", icon: BarChart3 },
-  ]
-  const operatorMenu: MenuItem[] = [
-    {
-      label: "Penerimaan", href: "/penerimaan", icon: Banknote,
-      children: [
-        { label: "Daftar Penerimaan", href: "/penerimaan" },
-        { label: "Input Baru", href: "/penerimaan/baru" },
-        { label: "Import Excel/CSV", href: "/penerimaan/import" },
-      ],
-    },
-    {
-      label: "Pengeluaran", href: "/pengeluaran", icon: Banknote,
-      children: [
-        { label: "Daftar Pengeluaran", href: "/pengeluaran" },
-        { label: "Input Baru", href: "/pengeluaran/baru" },
-        { label: "Import Excel/CSV", href: "/pengeluaran/import" },
-      ],
-    },
-  ]
-  const pimpinanMenu: MenuItem[] = [
-    { label: "Laporan", href: "/laporan", icon: BarChart3 },
-  ]
-  const bottomMenu: MenuItem[] = [
-    { label: "Panduan & Aturan", href: "/panduan", icon: BookMarked },
-  ]
-  
-  if (role === "ADMIN") return [...common, ...adminMenu, ...bottomMenu]
-  if (role === "OPERATOR") return [...common, ...operatorMenu, ...bottomMenu]
-  if (role === "PIMPINAN") return [...common, ...pimpinanMenu, ...bottomMenu]
-  return [...common, ...bottomMenu]
+  return getMenuGroups(role).flatMap(g => g.items)
 }
 
 const SEGMENT_LABELS: Record<string, string> = {
@@ -138,6 +165,8 @@ const SEGMENT_LABELS: Record<string, string> = {
   "kategori-pendapatan": "Kategori Pendapatan",
   "jenis-pendapatan": "Jenis Pendapatan",
   "sub-pendapatan": "Sub Pendapatan",
+  "kategori-pengeluaran": "Kategori Pengeluaran",
+  "jenis-pengeluaran": "Jenis Pengeluaran",
   "unit-kerja": "Unit Kerja",
   "rekening-bank": "Rekening Bank",
   "jenis-pemindahan-kas": "Jenis Pemindahan Kas",
@@ -356,7 +385,7 @@ function AppSidebarFooter({ profile }: { profile: Profile }) {
 }
 
 function AppSidebar({ profile }: { profile: Profile }) {
-  const menuItems = getMenuItems(profile.role.kode)
+  const menuGroups = getMenuGroups(profile.role.kode)
 
   return (
     <Sidebar collapsible="icon">
@@ -379,13 +408,16 @@ function AppSidebar({ profile }: { profile: Profile }) {
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarMenu>
-            {menuItems.map((item) => (
-              <NavItem key={item.href} item={item} />
-            ))}
-          </SidebarMenu>
-        </SidebarGroup>
+        {menuGroups.map((group, gi) => (
+          <SidebarGroup key={gi}>
+            <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+            <SidebarMenu>
+              {group.items.map((item) => (
+                <NavItem key={item.href} item={item} />
+              ))}
+            </SidebarMenu>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
 
       <AppSidebarFooter profile={profile} />

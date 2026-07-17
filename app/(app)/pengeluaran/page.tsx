@@ -53,11 +53,11 @@ export default async function PengeluaranPage({
         action={
           isOperator || isAdmin ? (
             <div className="flex gap-2">
-              <Button size="sm" variant="ghost" render={<Link href="/pengeluaran/import" />}>
+              <Button size="sm" variant="ghost" nativeButton={false} render={<Link href="/pengeluaran/import" />}>
                 <Upload className="h-4 w-4" />
                 Import
               </Button>
-              <Button size="sm" render={<Link href="/pengeluaran/baru" />}>
+              <Button size="sm" nativeButton={false} render={<Link href="/pengeluaran/baru" />}>
                 <Plus className="h-4 w-4" />
                 Input Baru
               </Button>
