@@ -108,10 +108,8 @@ export function PenerimaanTahunBerjalanCard({ data, isPending, className }: Pene
                 </div>
                 
                 <div className="shrink-0 hidden sm:block">
-                  <Button asChild variant="outline" className="bg-transparent border-zinc-700 text-white hover:bg-zinc-800 hover:text-white rounded-lg h-9 px-4 text-sm font-medium transition-colors">
-                    <Link href="/penerimaan">
-                      Lihat Detail
-                    </Link>
+                  <Button render={<Link href="/penerimaan" />} variant="outline" className="bg-transparent border-zinc-700 text-white hover:bg-zinc-800 hover:text-white rounded-lg h-9 px-4 text-sm font-medium transition-colors">
+                    Lihat Detail
                   </Button>
                 </div>
               </div>
