@@ -116,7 +116,13 @@ function getMenuGroups(role: string): MenuGroup[] {
     ],
   }
 
-  const laporan: MenuItem = { label: "Laporan", href: "/laporan", icon: BarChart3 }
+  const laporan: MenuItem = {
+    label: "Laporan", href: "/laporan", icon: BarChart3,
+    children: [
+      { label: "Laporan Umum", href: "/laporan" },
+      { label: "Buku Kas Umum", href: "/laporan/buku-kas-umum" },
+    ],
+  }
   const pengguna: MenuItem = { label: "Pengguna", href: "/pengguna", icon: Users }
   const panduan: MenuItem = { label: "Panduan & Aturan", href: "/panduan", icon: BookMarked }
 
@@ -172,6 +178,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   "jenis-pemindahan-kas": "Jenis Pemindahan Kas",
   pengguna: "Pengguna",
   laporan: "Laporan",
+  "buku-kas-umum": "Buku Kas Umum",
   panduan: "Panduan & Aturan",
 }
 

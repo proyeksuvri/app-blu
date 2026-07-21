@@ -493,3 +493,165 @@ export async function rekapPerRekeningByJenis(
 
   return { rows, total }
 }
+
+// ─── Buku Kas Umum ────────────────────────────────────────────────────────────
+
+export type BukuKasRow = {
+  no: number
+  id: string
+  tipe: "penerimaan" | "pengeluaran"
+  tanggal: string
+  nomor_bukti: string
+  uraian: string
+  jenis_nama: string | null
+  rekening: { kode: string; nama_bank: string; nama_rekening: string } | null
+  unit: { kode: string; nama: string } | null
+  penerimaan: number
+  pengeluaran: number
+  saldo: number
+}
+
+export type BukuKasUmumResult = {
+  rows: BukuKasRow[]
+  totalPenerimaan: number
+  totalPengeluaran: number
+  saldoAwal: number
+  saldoAkhir: number
+  totalRows: number
+  page: number
+  limit: number
+}
+
+export type BukuKasFilter = {
+  tglAwal: string
+  tglAkhir: string
+  rekeningId?: string
+  unitId?: string
+  page?: number
+  limit?: number
+}
+
+export async function getBukuKasUmum(filter: BukuKasFilter): Promise<BukuKasUmumResult> {
+  await requireRole(["ADMIN", "PIMPINAN"])
+
+  const empty: BukuKasUmumResult = {
+    rows: [], totalPenerimaan: 0, totalPengeluaran: 0,
+    saldoAwal: 0, saldoAkhir: 0, totalRows: 0, page: 1, limit: 50,
+  }
+
+  if (!ISO_DATE_RE.test(filter.tglAwal) || !ISO_DATE_RE.test(filter.tglAkhir)) return empty
+
+  const sb = await createClient()
+  const limit = [25, 50, 100].includes(filter.limit ?? 0) ? filter.limit! : 50
+  const page = Math.max(1, filter.page ?? 1)
+
+  const resolve = <T>(v: T | T[] | null | undefined): T | null =>
+    v == null ? null : Array.isArray(v) ? (v[0] ?? null) : v
+
+  // ── Ambil semua penerimaan dalam range ──
+  let penQ = sb
+    .from("penerimaan")
+    .select("id, nomor_bukti, tanggal_terima, jumlah, uraian, created_at, rekening:rekening_bank(kode, nama_bank, nama_rekening), unit:unit_kerja(kode, nama), jenis:jenis_pendapatan(kode, nama)")
+    .gte("tanggal_terima", filter.tglAwal)
+    .lte("tanggal_terima", filter.tglAkhir)
+    .eq("status", "verified")
+
+  if (filter.rekeningId) penQ = penQ.eq("rekening_bank_id", filter.rekeningId)
+  if (filter.unitId) penQ = penQ.eq("unit_kerja_id", filter.unitId)
+
+  // ── Ambil semua pengeluaran dalam range ──
+  let kelQ = sb
+    .from("pengeluaran")
+    .select("id, nomor_bukti, tanggal, jumlah, uraian, created_at, rekening:rekening_bank(kode, nama_bank, nama_rekening), unit:unit_kerja(kode, nama), jenis:jenis_pengeluaran(kode, nama)")
+    .gte("tanggal", filter.tglAwal)
+    .lte("tanggal", filter.tglAkhir)
+    .eq("status", "verified")
+
+  if (filter.rekeningId) kelQ = kelQ.eq("rekening_bank_id", filter.rekeningId)
+  if (filter.unitId) kelQ = kelQ.eq("unit_kerja_id", filter.unitId)
+
+  const [penRes, kelRes] = await Promise.all([penQ, kelQ])
+  if (penRes.error || kelRes.error) return empty
+
+  // ── Hitung saldo awal ──
+  const tahunAwal = parseInt(filter.tglAwal.split("-")[0], 10)
+  let saldoAwal = 0
+
+  if (filter.rekeningId) {
+    const { data: sa } = await sb
+      .from("saldo_awal_rekening")
+      .select("saldo")
+      .eq("rekening_bank_id", filter.rekeningId)
+      .eq("tahun", tahunAwal)
+      .maybeSingle()
+    saldoAwal = Number(sa?.saldo ?? 0)
+  } else {
+    const { data: saAll } = await sb
+      .from("saldo_awal_rekening")
+      .select("saldo")
+      .eq("tahun", tahunAwal)
+    saldoAwal = (saAll ?? []).reduce((s, r) => s + Number(r.saldo), 0)
+  }
+
+  // ── Merge & sort ──
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const allRows: { tipe: "penerimaan" | "pengeluaran"; tanggal: string; created_at: string; raw: any }[] = [
+    ...(penRes.data ?? []).map((r) => ({ tipe: "penerimaan" as const, tanggal: r.tanggal_terima, created_at: r.created_at ?? "", raw: r })),
+    ...(kelRes.data ?? []).map((r) => ({ tipe: "pengeluaran" as const, tanggal: r.tanggal, created_at: r.created_at ?? "", raw: r })),
+  ].sort((a, b) => {
+    if (a.tanggal !== b.tanggal) return a.tanggal.localeCompare(b.tanggal)
+    return a.created_at.localeCompare(b.created_at)
+  })
+
+  const totalRows = allRows.length
+
+  // ── Hitung total penerimaan & pengeluaran ──
+  let totalPenerimaan = 0
+  let totalPengeluaran = 0
+  for (const r of allRows) {
+    if (r.tipe === "penerimaan") totalPenerimaan += Number(r.raw.jumlah)
+    else totalPengeluaran += Number(r.raw.jumlah)
+  }
+
+  // ── Hitung saldo berjalan untuk SEMUA rows, lalu paginate ──
+  let saldoBerjalan = saldoAwal
+  const allWithSaldo: BukuKasRow[] = allRows.map((r, i) => {
+    const jumlah = Number(r.raw.jumlah)
+    const rek = resolve(r.raw.rekening) as { kode: string; nama_bank: string; nama_rekening: string } | null
+    const unit = resolve(r.raw.unit) as { kode: string; nama: string } | null
+    const jenis = resolve(r.raw.jenis) as { kode: string; nama: string } | null
+    if (r.tipe === "penerimaan") saldoBerjalan += jumlah
+    else saldoBerjalan -= jumlah
+    return {
+      no: i + 1,
+      id: r.raw.id,
+      tipe: r.tipe,
+      tanggal: r.tanggal,
+      nomor_bukti: r.raw.nomor_bukti ?? "-",
+      uraian: r.raw.uraian ?? "-",
+      jenis_nama: jenis?.nama ?? null,
+      rekening: rek,
+      unit,
+      penerimaan: r.tipe === "penerimaan" ? jumlah : 0,
+      pengeluaran: r.tipe === "pengeluaran" ? jumlah : 0,
+      saldo: saldoBerjalan,
+    }
+  })
+
+  const saldoAkhir = saldoAwal + totalPenerimaan - totalPengeluaran
+  const offset = (page - 1) * limit
+  const rows = allWithSaldo.slice(offset, offset + limit)
+
+  return { rows, totalPenerimaan, totalPengeluaran, saldoAwal, saldoAkhir, totalRows, page, limit }
+}
+
+/**
+ * Sama dengan getBukuKasUmum, tapi mengembalikan SEMUA baris (tanpa paginasi)
+ * untuk keperluan export PDF.
+ */
+export async function getBukuKasUmumAll(
+  filter: Omit<BukuKasFilter, "page" | "limit">
+): Promise<BukuKasUmumResult & { allRows: BukuKasRow[] }> {
+  const result = await getBukuKasUmum({ ...filter, page: 1, limit: 99999 })
+  return { ...result, allRows: result.rows }
+}

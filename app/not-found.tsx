@@ -15,7 +15,7 @@ export default function NotFound() {
           Halaman yang kamu cari tidak ada atau sudah dipindahkan.
         </p>
       </div>
-      <Button render={<Link href="/dashboard" />}>
+      <Button render={<Link href="/dashboard" />} nativeButton={false}>
         Kembali ke Dashboard
       </Button>
     </div>
