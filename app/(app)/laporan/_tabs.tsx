@@ -7,6 +7,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 const tabs = [
   { label: "Harian", href: "/laporan/harian", value: "harian" },
   { label: "Bulanan", href: "/laporan/bulanan", value: "bulanan" },
+  { label: "BKU Penerimaan", href: "/laporan/bku-penerimaan", value: "bku-penerimaan" },
   { label: "Per Rekening", href: "/laporan/per-rekening", value: "per-rekening" },
   { label: "Rekening Koran", href: "/laporan/rekening-koran", value: "rekening-koran" },
 ]

@@ -121,6 +121,7 @@ function getMenuGroups(role: string): MenuGroup[] {
     children: [
       { label: "Laporan Umum", href: "/laporan" },
       { label: "Buku Kas Umum", href: "/laporan/buku-kas-umum" },
+      { label: "BKU Penerimaan", href: "/laporan/bku-penerimaan" },
     ],
   }
   const pengguna: MenuItem = { label: "Pengguna", href: "/pengguna", icon: Users }
@@ -179,6 +180,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   pengguna: "Pengguna",
   laporan: "Laporan",
   "buku-kas-umum": "Buku Kas Umum",
+  "bku-penerimaan": "BKU Penerimaan",
   panduan: "Panduan & Aturan",
 }
 

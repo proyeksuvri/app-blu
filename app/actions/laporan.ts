@@ -655,3 +655,108 @@ export async function getBukuKasUmumAll(
   const result = await getBukuKasUmum({ ...filter, page: 1, limit: 99999 })
   return { ...result, allRows: result.rows }
 }
+
+export type BkuPenerimaanFilter = {
+  tglAwal?: string
+  tglAkhir?: string
+  rekeningId?: string
+  unitId?: string
+  page?: number
+  limit?: number
+}
+
+export type BkuPenerimaanRow = {
+  no: number
+  id: string
+  tanggal: string
+  nomor_bukti: string
+  uraian: string
+  jenis_kode: string | null
+  jenis_nama: string | null
+  penerimaan: number
+  saldo: number
+}
+
+export async function getBkuPenerimaan(filter: BkuPenerimaanFilter = {}) {
+  await requireRole(["ADMIN", "PIMPINAN"])
+  const sb = await createClient()
+
+  const today = new Date()
+  const defaultAwal = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0]
+  const defaultAkhir = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split("T")[0]
+  
+  const tglAwal = filter.tglAwal ?? defaultAwal
+  const tglAkhir = filter.tglAkhir ?? defaultAkhir
+  const page = filter.page ?? 1
+  const limit = filter.limit ?? 25
+
+  // 1. Saldo Awal (total penerimaan sebelum tglAwal di tahun yang sama)
+  const awalTahun = `${tglAwal.substring(0, 4)}-01-01`
+  let saldoAwal = 0
+  if (tglAwal > awalTahun) {
+    let qPrev = sb
+      .from("penerimaan")
+      .select("jumlah")
+      .gte("tanggal_terima", awalTahun)
+      .lt("tanggal_terima", tglAwal)
+      .eq("status", "verified")
+    
+    if (filter.rekeningId) qPrev = qPrev.eq("rekening_bank_id", filter.rekeningId)
+    if (filter.unitId) qPrev = qPrev.eq("unit_kerja_id", filter.unitId)
+
+    const { data: prevData } = await qPrev
+    saldoAwal = (prevData ?? []).reduce((sum, r) => sum + Number(r.jumlah), 0)
+  }
+
+  // 2. Transaksi dalam rentang tanggal
+  let qCurr = sb
+    .from("penerimaan")
+    .select(`
+      id, tanggal_terima, nomor_bukti, uraian, jumlah, created_at,
+      jenis:jenis_pendapatan(kode, nama)
+    `)
+    .gte("tanggal_terima", tglAwal)
+    .lte("tanggal_terima", tglAkhir)
+    .eq("status", "verified")
+
+  if (filter.rekeningId) qCurr = qCurr.eq("rekening_bank_id", filter.rekeningId)
+  if (filter.unitId) qCurr = qCurr.eq("unit_kerja_id", filter.unitId)
+
+  const { data: currentData, error } = await qCurr
+    .order("tanggal_terima")
+    .order("created_at")
+
+  if (error) {
+    console.error("getBkuPenerimaan error:", error)
+    return { rows: [], saldoAwal: 0, saldoAkhir: 0, totalPenerimaan: 0, totalRows: 0, page, limit }
+  }
+
+  const raw = currentData ?? []
+  const totalPenerimaan = raw.reduce((sum, r) => sum + Number(r.jumlah), 0)
+  
+  let saldoBerjalan = saldoAwal
+  const allRows: BkuPenerimaanRow[] = raw.map((r, i) => {
+    const jumlah = Number(r.jumlah)
+    saldoBerjalan += jumlah
+    const jenis = Array.isArray(r.jenis) ? r.jenis[0] : r.jenis
+    return {
+      no: i + 1,
+      id: r.id,
+      tanggal: r.tanggal_terima,
+      nomor_bukti: r.nomor_bukti ?? "-",
+      uraian: r.uraian ?? "-",
+      jenis_kode: jenis?.kode ?? null,
+      jenis_nama: jenis?.nama ?? null,
+      penerimaan: jumlah,
+      saldo: saldoBerjalan
+    }
+  })
+
+  const saldoAkhir = saldoBerjalan
+  const totalRows = allRows.length
+  const offset = (page - 1) * limit
+  const rows = allRows.slice(offset, offset + limit)
+
+  return { rows, saldoAwal, saldoAkhir, totalPenerimaan, totalRows, page, limit }
+}
+

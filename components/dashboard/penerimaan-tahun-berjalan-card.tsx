@@ -51,16 +51,16 @@ export function PenerimaanTahunBerjalanCard({ data, isPending, className }: Pene
   const isNegativeYear = growthYear !== null && growthYear < 0
 
   return (
-    <Card className={cn("flex flex-col h-full relative overflow-hidden bg-[#1a1a1c] text-white border-0 shadow-md", className)}>
+    <Card className={cn("flex flex-col h-full relative overflow-hidden bg-card text-card-foreground shadow-sm", className)}>
       <BackgroundConfetti />
       <div className="relative z-10 flex flex-col h-full">
         <CardHeader className="pb-2">
           <div className="flex flex-col justify-between gap-2">
             <div>
-              <CardTitle className="text-xl font-bold flex items-center gap-2 text-white">
+              <CardTitle className="text-xl font-bold flex items-center gap-2">
                 Penerimaan Berjalan <span className="text-xl">🎉</span>
               </CardTitle>
-              <CardDescription className="text-zinc-400 text-sm mt-1">
+              <CardDescription className="text-sm mt-1 text-muted-foreground">
                 Filter penerimaan berdasarkan periode
               </CardDescription>
             </div>
@@ -69,21 +69,21 @@ export function PenerimaanTahunBerjalanCard({ data, isPending, className }: Pene
         <CardContent className="flex-1 flex flex-col justify-end">
           {isPending || !data ? (
             <div className="flex flex-col gap-2 py-4">
-              <Skeleton className="h-10 w-[200px] bg-zinc-800" />
-              <Skeleton className="h-4 w-[150px] bg-zinc-800" />
+              <Skeleton className="h-10 w-[200px]" />
+              <Skeleton className="h-4 w-[150px]" />
             </div>
           ) : (
             <div className="flex flex-col gap-1.5 pt-4">
               <div className="flex items-end justify-between gap-4">
                 <div className="min-w-0">
-                  <p className="text-3xl font-bold tracking-tight text-white mb-2 truncate">
+                  <p className="text-3xl font-bold tracking-tight mb-2 truncate">
                     {rupiah(data.total)}
                   </p>
-                  <div className="flex flex-col text-sm text-zinc-400 gap-1 mt-1">
+                  <div className="flex flex-col text-sm text-muted-foreground gap-1 mt-1">
                     <div className="flex items-center gap-1.5">
                       {growth !== null ? (
                         <>
-                          <span className={`flex items-center font-medium ${isPositive ? 'text-emerald-400' : isNegative ? 'text-rose-400' : 'text-zinc-300'}`}>
+                          <span className={`flex items-center font-medium ${isPositive ? 'text-emerald-600 dark:text-emerald-400' : isNegative ? 'text-rose-600 dark:text-rose-400' : 'text-muted-foreground'}`}>
                             {isPositive ? '+' : ''}{growth}%
                           </span>
                           <span className="truncate">vs periode sebelumnya</span>
@@ -95,7 +95,7 @@ export function PenerimaanTahunBerjalanCard({ data, isPending, className }: Pene
                     <div className="flex items-center gap-1.5">
                       {growthYear !== null ? (
                         <>
-                          <span className={`flex items-center font-medium ${isPositiveYear ? 'text-emerald-400' : isNegativeYear ? 'text-rose-400' : 'text-zinc-300'}`}>
+                          <span className={`flex items-center font-medium ${isPositiveYear ? 'text-emerald-600 dark:text-emerald-400' : isNegativeYear ? 'text-rose-600 dark:text-rose-400' : 'text-muted-foreground'}`}>
                             {isPositiveYear ? '+' : ''}{growthYear}%
                           </span>
                           <span className="truncate">vs tahun lalu</span>
@@ -108,7 +108,7 @@ export function PenerimaanTahunBerjalanCard({ data, isPending, className }: Pene
                 </div>
                 
                 <div className="shrink-0 hidden sm:block">
-                  <Button render={<Link href="/penerimaan" />} variant="outline" className="bg-transparent border-zinc-700 text-white hover:bg-zinc-800 hover:text-white rounded-lg h-9 px-4 text-sm font-medium transition-colors">
+                  <Button nativeButton={false} render={<Link href="/penerimaan" />} variant="outline" className="h-9 px-4 text-sm font-medium transition-colors">
                     Lihat Detail
                   </Button>
                 </div>
