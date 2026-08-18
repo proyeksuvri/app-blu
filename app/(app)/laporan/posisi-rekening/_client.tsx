@@ -363,6 +363,21 @@ export function PosisiRekeningClient({
     }
   }
 
+  function handleTabChange(tab: string) {
+    setActiveTab(tab)
+    if (tab === "bulanan" && !dataBulanan) {
+      startTransition(async () => {
+        const result = await rekapPosisiKasBulanan(tahunBulanan, rekeningIdBulanan)
+        setDataBulanan(result)
+      })
+    } else if (tab === "per-rekening" && dataPerRekening.length === 0) {
+      startTransition(async () => {
+        const result = await rekapPosisiRekening(tahunPerRekening, bulanPerRekening)
+        setDataPerRekening(result)
+      })
+    }
+  }
+
   // ─── Computed Totals Tab 1 ──────────────────────────────────────────────────
 
   const totalSaldoAwal1 = dataPerRekening.reduce((s, r) => s + r.saldoAwal, 0)
@@ -380,7 +395,7 @@ export function PosisiRekeningClient({
 
       <div className="flex flex-col gap-5">
         {/* Sub Navigation Tabs */}
-        <Tabs value={activeTab} onValueChange={(v) => v && setActiveTab(v)}>
+        <Tabs value={activeTab} onValueChange={(v) => v && handleTabChange(v)}>
           <TabsList variant="line" className="border-b border-border w-full justify-start gap-4">
             <TabsTrigger value="per-rekening" className="text-sm font-medium py-2">
               Posisi Per Rekening

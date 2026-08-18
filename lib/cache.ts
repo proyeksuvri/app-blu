@@ -5,8 +5,14 @@ import { getRedis } from "@/lib/redis"
 export async function invalidateDashboardCache() {
   const redis = getRedis()
   if (!redis) return
-  const keys = await redis.keys("dashboard:stats:*")
-  if (keys.length) await redis.del(...(keys as [string, ...string[]]))
+  try {
+    const dKeys = await redis.keys("dashboard:stats:*")
+    const lKeys = await redis.keys("laporan:*")
+    const allKeys = [...dKeys, ...lKeys]
+    if (allKeys.length) await redis.del(...(allKeys as [string, ...string[]]))
+  } catch {
+    // Abaikan error Redis
+  }
 }
 
 export async function invalidatePenerimaanFilteredCache() {
@@ -68,6 +74,20 @@ export async function invalidateMasterCache() {
 
   try {
     const keys = await redis.keys("master:*")
+    if (keys.length) await redis.del(...(keys as [string, ...string[]]))
+  } catch {
+    // Abaikan error Redis
+  }
+}
+
+// ─── Laporan Cache ────────────────────────────────────────────────────────────
+
+export async function invalidateLaporanCache() {
+  const redis = getRedis()
+  if (!redis) return
+
+  try {
+    const keys = await redis.keys("laporan:*")
     if (keys.length) await redis.del(...(keys as [string, ...string[]]))
   } catch {
     // Abaikan error Redis

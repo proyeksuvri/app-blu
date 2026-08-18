@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { requireRole, getCurrentProfile } from "@/lib/session"
-import { invalidateDashboardCache } from "@/lib/cache"
+import { invalidateDashboardCache, invalidateLaporanCache } from "@/lib/cache"
 
 type ActionResult<T = void> =
   | { ok: true; data: T }

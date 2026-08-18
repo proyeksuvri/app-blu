@@ -18,9 +18,10 @@ export default async function PosisiRekeningPage({
   const rekeningId = params.rekening_id ?? "__ALL__"
   const defaultTab = params.tab === "bulanan" ? "bulanan" : "per-rekening"
 
+  // Lazy load: Hanya ambil data tab yang sedang aktif di awal agar loading halaman 2x lebih cepat
   const [dataPerRekening, dataBulanan, rekeningList] = await Promise.all([
-    rekapPosisiRekening(tahun, bulan),
-    rekapPosisiKasBulanan(tahun, rekeningId),
+    defaultTab === "per-rekening" ? rekapPosisiRekening(tahun, bulan) : Promise.resolve([]),
+    defaultTab === "bulanan" ? rekapPosisiKasBulanan(tahun, rekeningId) : Promise.resolve(null),
     listRekening(),
   ])
 
