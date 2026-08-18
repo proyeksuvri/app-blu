@@ -146,8 +146,12 @@ export function PengeluaranTable({ data, isAdmin, sort, order, totalDraft, total
 
   async function handleDownload() {
     const statuses = (filter?.status ?? "").split(",").filter(Boolean)
+    const tahun = filter?.tahun ? parseInt(filter.tahun) : undefined
+    const bulan = filter?.bulan ? parseInt(filter.bulan) : undefined
     const result = await exportPengeluaran({
       statuses: statuses.length ? statuses : undefined,
+      tahun,
+      bulan,
       unit_id: filter?.unit_id || undefined,
       rekening_id: filter?.rekening_id || undefined,
       tgl_awal: filter?.tgl_awal,

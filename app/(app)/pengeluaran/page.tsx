@@ -14,7 +14,16 @@ import { createClient } from "@/lib/supabase/server"
 export default async function PengeluaranPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; page?: string; limit?: string; sort?: string; order?: string }>
+  searchParams: Promise<{
+    status?: string
+    bulan?: string
+    tahun?: string
+    q?: string
+    page?: string
+    limit?: string
+    sort?: string
+    order?: string
+  }>
 }) {
   const profile = await getCurrentProfile()
   if (!profile) redirect("/")
@@ -27,6 +36,9 @@ export default async function PengeluaranPage({
   const pageSize = [25, 50, 100].includes(Number(params.limit)) ? Number(params.limit) : 25
 
   const statuses = (params.status ?? "").split(",").filter(Boolean)
+  const tahun = params.tahun ? parseInt(params.tahun) : undefined
+  const bulan = params.bulan ? parseInt(params.bulan) : undefined
+  const q = params.q?.trim() || undefined
 
   const isOperator = profile.role.kode === "OPERATOR"
   const isAdmin = profile.role.kode === "ADMIN"
@@ -36,6 +48,9 @@ export default async function PengeluaranPage({
   const [{ data, count }, { count: totalDraft }, { count: totalDeletable }] = await Promise.all([
     listPengeluaran({
       statuses: statuses.length ? statuses : undefined,
+      tahun,
+      bulan,
+      q,
       page: currentPage,
       limit: pageSize,
       sort,
@@ -78,7 +93,12 @@ export default async function PengeluaranPage({
           order={order}
           totalDraft={totalDraft ?? 0}
           totalDeletable={totalDeletable ?? 0}
-          filter={{ status: params.status ?? "" }}
+          filter={{
+            status: params.status ?? "",
+            bulan: params.bulan ?? "",
+            tahun: params.tahun ?? "",
+            q: params.q ?? "",
+          }}
         />
       </Suspense>
 

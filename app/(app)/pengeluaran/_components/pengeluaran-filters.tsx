@@ -1,47 +1,117 @@
 "use client"
 
-import { useRouter, useSearchParams, usePathname } from "next/navigation"
-import { useTransition } from "react"
-import { Search } from "lucide-react"
+import { useEffect, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { Search, X } from "lucide-react"
+import { FacetedFilter, FilterReset, type FilterOption } from "@/components/ui/faceted-filter"
 import { Input } from "@/components/ui/input"
-import { FacetedFilter } from "@/components/ui/faceted-filter"
 
-export function PengeluaranFilters() {
+const STATUS_OPTIONS: FilterOption[] = [
+  { value: "draft", label: "Draft" },
+  { value: "verified", label: "Terverifikasi" },
+  { value: "void", label: "Dibatalkan" },
+]
+
+const BULAN_OPTIONS: FilterOption[] = [
+  { value: "1", label: "Januari" },
+  { value: "2", label: "Februari" },
+  { value: "3", label: "Maret" },
+  { value: "4", label: "April" },
+  { value: "5", label: "Mei" },
+  { value: "6", label: "Juni" },
+  { value: "7", label: "Juli" },
+  { value: "8", label: "Agustus" },
+  { value: "9", label: "September" },
+  { value: "10", label: "Oktober" },
+  { value: "11", label: "November" },
+  { value: "12", label: "Desember" },
+]
+
+const currentYear = new Date().getFullYear()
+const TAHUN_OPTIONS: FilterOption[] = Array.from({ length: 6 }, (_, i) => {
+  const y = currentYear - i
+  return { value: String(y), label: `Tahun ${y}` }
+})
+
+function SearchInput() {
   const router = useRouter()
-  const pathname = usePathname()
   const searchParams = useSearchParams()
-  const [isPending, startTransition] = useTransition()
+  const currentQ = searchParams.get("q") ?? ""
+  const [val, setVal] = useState(currentQ)
+
+  useEffect(() => {
+    setVal(currentQ)
+  }, [currentQ])
+
+  function handleSearch(term: string) {
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete("page")
+    if (term.trim()) {
+      params.set("q", term.trim())
+    } else {
+      params.delete("q")
+    }
+    router.push(`?${params.toString()}`)
+  }
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <div className="relative flex-1 min-w-[200px] max-w-sm">
-        <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+    <div className="flex min-w-56 flex-col gap-1.5">
+      <label className="text-xs font-medium text-foreground">Cari Nomor Bukti</label>
+      <div className="relative flex items-center">
+        <Search className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
         <Input
-          placeholder="Cari nomor bukti..."
-          className="pl-9 h-9"
-          defaultValue={searchParams.get("q") ?? ""}
+          type="text"
+          placeholder="Ketik nomor bukti..."
+          value={val}
           onChange={(e) => {
-            const v = e.target.value.trim()
-            startTransition(() => {
-              const params = new URLSearchParams(searchParams.toString())
-              if (v) params.set("q", v)
-              else params.delete("q")
-              params.delete("page")
-              router.replace(`${pathname}?${params.toString()}`)
-            })
+            setVal(e.target.value)
+            if (!e.target.value) handleSearch("")
           }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleSearch(val)
+          }}
+          className="h-8 pl-8 pr-7 bg-input/20 text-xs font-medium"
         />
+        {val && (
+          <button
+            type="button"
+            onClick={() => {
+              setVal("")
+              handleSearch("")
+            }}
+            className="absolute right-2 text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
+    </div>
+  )
+}
 
+export function PengeluaranFilters() {
+  return (
+    <div className="flex flex-wrap items-end gap-3">
+      <SearchInput />
+      <FacetedFilter
+        title="Bulan"
+        paramKey="bulan"
+        options={BULAN_OPTIONS}
+        placeholder="Semua bulan"
+      />
+      <FacetedFilter
+        title="Tahun"
+        paramKey="tahun"
+        options={TAHUN_OPTIONS}
+        placeholder="Semua tahun"
+      />
       <FacetedFilter
         title="Status"
         paramKey="status"
-        options={[
-          { value: "draft", label: "Draft" },
-          { value: "verified", label: "Terverifikasi" },
-          { value: "void", label: "Batal" },
-        ]}
+        options={STATUS_OPTIONS}
+        placeholder="Semua status"
       />
+      <FilterReset paramKeys={["status", "bulan", "tahun", "q"]} />
     </div>
   )
 }

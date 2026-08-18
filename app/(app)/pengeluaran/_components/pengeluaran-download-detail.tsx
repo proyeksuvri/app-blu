@@ -19,9 +19,13 @@ export function PengeluaranDownloadDetail({ filter, sort, order }: DownloadDetai
     setLoading(true)
     try {
       const statuses = (filter?.status ?? "").split(",").filter(Boolean)
+      const tahun = filter?.tahun ? parseInt(filter.tahun) : undefined
+      const bulan = filter?.bulan ? parseInt(filter.bulan) : undefined
 
       const result = await exportPengeluaranDetail({
         statuses: statuses.length ? statuses : undefined,
+        tahun,
+        bulan,
         unit_id: filter?.unit_id || undefined,
         rekening_id: filter?.rekening_id || undefined,
         tgl_awal: filter?.tgl_awal,
@@ -30,6 +34,7 @@ export function PengeluaranDownloadDetail({ filter, sort, order }: DownloadDetai
         sort: sort,
         order: order,
       })
+
 
       if (!result.ok) {
         toast.error(result.pesan)

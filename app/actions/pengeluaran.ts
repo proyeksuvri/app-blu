@@ -12,6 +12,8 @@ type ActionResult<T = void> =
 export type PengeluaranFilter = {
   status?: "draft" | "verified" | "void"
   statuses?: string[]
+  tahun?: number
+  bulan?: number
   tgl_awal?: string
   tgl_akhir?: string
   unit_id?: string
@@ -21,6 +23,40 @@ export type PengeluaranFilter = {
   limit?: number
   sort?: "tanggal" | "jumlah" | "nomor_bukti"
   order?: "asc" | "desc"
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function applyDateFilter(query: any, filter: PengeluaranFilter) {
+  let q = query
+  if (filter.tgl_awal) {
+    q = q.gte("tanggal", filter.tgl_awal)
+  } else if (filter.tahun && filter.bulan) {
+    const tglAwal = `${filter.tahun}-${String(filter.bulan).padStart(2, "0")}-01`
+    q = q.gte("tanggal", tglAwal)
+  } else if (filter.bulan) {
+    const yr = filter.tahun ?? new Date().getFullYear()
+    const tglAwal = `${yr}-${String(filter.bulan).padStart(2, "0")}-01`
+    q = q.gte("tanggal", tglAwal)
+  } else if (filter.tahun) {
+    q = q.gte("tanggal", `${filter.tahun}-01-01`)
+  }
+
+  if (filter.tgl_akhir) {
+    q = q.lte("tanggal", filter.tgl_akhir)
+  } else if (filter.tahun && filter.bulan) {
+    const daysInMonth = new Date(filter.tahun, filter.bulan, 0).getDate()
+    const tglAkhir = `${filter.tahun}-${String(filter.bulan).padStart(2, "0")}-${String(daysInMonth).padStart(2, "0")}`
+    q = q.lte("tanggal", tglAkhir)
+  } else if (filter.bulan) {
+    const yr = filter.tahun ?? new Date().getFullYear()
+    const daysInMonth = new Date(yr, filter.bulan, 0).getDate()
+    const tglAkhir = `${yr}-${String(filter.bulan).padStart(2, "0")}-${String(daysInMonth).padStart(2, "0")}`
+    q = q.lte("tanggal", tglAkhir)
+  } else if (filter.tahun) {
+    q = q.lte("tanggal", `${filter.tahun}-12-31`)
+  }
+
+  return q
 }
 
 export async function listPengeluaran(filter: PengeluaranFilter = {}) {
@@ -42,8 +78,9 @@ export async function listPengeluaran(filter: PengeluaranFilter = {}) {
 
   if (filter.statuses?.length) q = q.in("status", filter.statuses)
   else if (filter.status) q = q.eq("status", filter.status)
-  if (filter.tgl_awal) q = q.gte("tanggal", filter.tgl_awal)
-  if (filter.tgl_akhir) q = q.lte("tanggal", filter.tgl_akhir)
+
+  q = applyDateFilter(q, filter)
+
   if (filter.unit_id) q = q.eq("unit_kerja_id", filter.unit_id)
   if (filter.rekening_id) q = q.eq("rekening_bank_id", filter.rekening_id)
   if (filter.q) q = q.ilike("nomor_bukti", `%${filter.q}%`)
@@ -56,6 +93,7 @@ export async function listPengeluaran(filter: PengeluaranFilter = {}) {
   if (error) return { data: [], count: 0 }
   return { data: data ?? [], count: count ?? 0 }
 }
+
 
 export async function getPengeluaran(id: string) {
   const profile = await getCurrentProfile()
@@ -361,8 +399,7 @@ export async function exportPengeluaran(filter: Omit<PengeluaranFilter, "page">)
 
   if (filter.statuses?.length) q = q.in("status", filter.statuses)
   else if (filter.status) q = q.eq("status", filter.status)
-  if (filter.tgl_awal)    q = q.gte("tanggal", filter.tgl_awal)
-  if (filter.tgl_akhir)   q = q.lte("tanggal", filter.tgl_akhir)
+  q = applyDateFilter(q, filter as PengeluaranFilter)
   if (filter.unit_id)     q = q.eq("unit_kerja_id", filter.unit_id)
   if (filter.rekening_id) q = q.eq("rekening_bank_id", filter.rekening_id)
   if (filter.q)           q = q.ilike("nomor_bukti", `%${filter.q}%`)
@@ -422,8 +459,7 @@ export async function exportPengeluaranDetail(filter: Omit<PengeluaranFilter, "p
 
   if (filter.statuses?.length) q = q.in("status", filter.statuses)
   else if (filter.status) q = q.eq("status", filter.status)
-  if (filter.tgl_awal)    q = q.gte("tanggal", filter.tgl_awal)
-  if (filter.tgl_akhir)   q = q.lte("tanggal", filter.tgl_akhir)
+  q = applyDateFilter(q, filter as PengeluaranFilter)
   if (filter.unit_id)     q = q.eq("unit_kerja_id", filter.unit_id)
   if (filter.rekening_id) q = q.eq("rekening_bank_id", filter.rekening_id)
   if (filter.q)           q = q.ilike("nomor_bukti", `%${filter.q}%`)
