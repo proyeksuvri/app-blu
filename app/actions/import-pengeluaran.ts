@@ -129,6 +129,54 @@ export async function parseImportPengeluaranData(
 
 const CHUNK_SIZE = 500
 
+async function generateUniqueNomorBuktiPengeluaran(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sb: any,
+  tahun: number,
+  count: number
+): Promise<string[]> {
+  const prefix = `K-${tahun}-`
+
+  // 1. Ambil nomor bukti yang ada untuk tahun tersebut untuk mendeteksi sequence tertinggi
+  const { data: existing } = await sb
+    .from("pengeluaran")
+    .select("nomor_bukti")
+    .ilike("nomor_bukti", `${prefix}%`)
+
+  const existingSet = new Set<string>()
+  let maxSeq = 0
+
+  if (existing) {
+    for (const r of existing) {
+      if (r.nomor_bukti) {
+        existingSet.add(r.nomor_bukti)
+        if (r.nomor_bukti.startsWith(prefix)) {
+          const num = parseInt(r.nomor_bukti.slice(prefix.length), 10)
+          if (!isNaN(num) && num > maxSeq) {
+            maxSeq = num
+          }
+        }
+      }
+    }
+  }
+
+  // 2. Generate nomor unik berurutan mulai dari maxSeq + 1
+  const result: string[] = []
+  let nextSeq = maxSeq + 1
+  for (let i = 0; i < count; i++) {
+    let candidate = `${prefix}${String(nextSeq).padStart(5, "0")}`
+    while (existingSet.has(candidate)) {
+      nextSeq++
+      candidate = `${prefix}${String(nextSeq).padStart(5, "0")}`
+    }
+    existingSet.add(candidate)
+    result.push(candidate)
+    nextSeq++
+  }
+
+  return result
+}
+
 export async function commitImportPengeluaran(
   rows: ImportPengeluaranPreviewRow[]
 ): Promise<{ ok: boolean; pesan?: string; jumlah?: number }> {
@@ -139,7 +187,7 @@ export async function commitImportPengeluaran(
   if (validRows.length === 0) return { ok: false, pesan: "Tidak ada baris valid untuk diimpor" }
   if (validRows.length > 2000) return { ok: false, pesan: "Maksimal 2000 baris per import" }
 
-  // Generate nomor bukti per tahun
+  // Generate nomor bukti per tahun secara aman dan unik
   const tahunGroups = new Map<number, number[]>()
   validRows.forEach((row, i) => {
     const tahun = new Date(row.tanggal).getFullYear()
@@ -149,12 +197,8 @@ export async function commitImportPengeluaran(
 
   const nomorMap = new Map<number, string>()
   for (const [tahun, indices] of tahunGroups) {
-    const { data: nomorList, error: nomorError } = await sb.rpc("fn_generate_nomor_bukti_pengeluaran_batch", {
-      p_tahun: tahun,
-      p_count: indices.length,
-    })
-    if (nomorError || !nomorList) return { ok: false, pesan: "Gagal generate nomor bukti" }
-    indices.forEach((rowIdx, i) => nomorMap.set(rowIdx, (nomorList as string[])[i]))
+    const nomorList = await generateUniqueNomorBuktiPengeluaran(sb, tahun, indices.length)
+    indices.forEach((rowIdx, i) => nomorMap.set(rowIdx, nomorList[i]))
   }
 
   const inserts = validRows.map((row, i) => ({
@@ -180,3 +224,4 @@ export async function commitImportPengeluaran(
   revalidatePath("/pengeluaran")
   return { ok: true, jumlah: inserts.length }
 }
+

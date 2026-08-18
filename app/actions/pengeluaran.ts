@@ -85,14 +85,50 @@ export type PengeluaranInput = {
   uraian: string
 }
 
+async function generateUniqueNomorBuktiPengeluaranSingle(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sb: any,
+  tahun: number
+): Promise<string> {
+  const prefix = `K-${tahun}-`
+  const { data: existing } = await sb
+    .from("pengeluaran")
+    .select("nomor_bukti")
+    .ilike("nomor_bukti", `${prefix}%`)
+
+  const existingSet = new Set<string>()
+  let maxSeq = 0
+
+  if (existing) {
+    for (const r of existing) {
+      if (r.nomor_bukti) {
+        existingSet.add(r.nomor_bukti)
+        if (r.nomor_bukti.startsWith(prefix)) {
+          const num = parseInt(r.nomor_bukti.slice(prefix.length), 10)
+          if (!isNaN(num) && num > maxSeq) {
+            maxSeq = num
+          }
+        }
+      }
+    }
+  }
+
+  let nextSeq = maxSeq + 1
+  let candidate = `${prefix}${String(nextSeq).padStart(5, "0")}`
+  while (existingSet.has(candidate)) {
+    nextSeq++
+    candidate = `${prefix}${String(nextSeq).padStart(5, "0")}`
+  }
+  return candidate
+}
+
 export async function createPengeluaran(input: PengeluaranInput): Promise<ActionResult> {
   const profile = await requireRole(["OPERATOR", "ADMIN"])
   const sb = await createClient()
 
-  // Generate nomor bukti
+  // Generate nomor bukti unik
   const tahun = new Date(input.tanggal).getFullYear()
-  const { data: nomorData, error: nomorError } = await sb.rpc("fn_generate_nomor_bukti_pengeluaran", { p_tahun: tahun })
-  if (nomorError) return { ok: false, pesan: "Gagal generate nomor bukti: " + nomorError.message }
+  const nomorData = await generateUniqueNomorBuktiPengeluaranSingle(sb, tahun)
 
   const { error } = await sb.from("pengeluaran").insert({
     ...input,
@@ -108,6 +144,7 @@ export async function createPengeluaran(input: PengeluaranInput): Promise<Action
   revalidatePath("/pengeluaran")
   return { ok: true, data: undefined }
 }
+
 
 export async function updatePengeluaran(id: string, input: PengeluaranInput): Promise<ActionResult> {
   const profile = await requireRole(["OPERATOR", "ADMIN"])
