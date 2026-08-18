@@ -265,3 +265,201 @@ export async function bulkUnverifyPengeluaran(ids: string[]): Promise<ActionResu
   revalidatePath("/pengeluaran")
   return { ok: true, data: { berhasil: count ?? ids.length, gagal: 0 } }
 }
+
+export async function countDraftPengeluaran(): Promise<number> {
+  await requireRole(["ADMIN"])
+  const sb = await createClient()
+  const { count } = await sb.from("pengeluaran").select("id", { count: "exact", head: true }).eq("status", "draft")
+  return count ?? 0
+}
+
+export async function countDraftAndVerifiedPengeluaran(): Promise<number> {
+  await requireRole(["ADMIN"])
+  const sb = await createClient()
+  const { count } = await sb
+    .from("pengeluaran")
+    .select("id", { count: "exact", head: true })
+    .in("status", ["draft", "verified"])
+  return count ?? 0
+}
+
+export async function verifyAllDraftPengeluaran(): Promise<ActionResult<{ berhasil: number }>> {
+  const profile = await requireRole(["ADMIN"])
+  const sb = await createClient()
+  const { error, count } = await sb
+    .from("pengeluaran")
+    .update({ status: "verified", verified_by: profile.id, verified_at: new Date().toISOString() })
+    .eq("status", "draft")
+  if (error) return { ok: false, pesan: error.message }
+  await invalidateDashboardCache()
+  revalidatePath("/pengeluaran")
+  return { ok: true, data: { berhasil: count ?? 0 } }
+}
+
+export async function deleteAllPengeluaran(): Promise<ActionResult<{ berhasil: number }>> {
+  await requireRole(["ADMIN"])
+  const sb = await createClient()
+  const { error, count } = await sb
+    .from("pengeluaran")
+    .delete({ count: "exact" })
+    .in("status", ["draft", "verified"])
+
+  if (error) return { ok: false, pesan: error.message }
+  await invalidateDashboardCache()
+  revalidatePath("/pengeluaran")
+  revalidatePath("/dashboard")
+  return { ok: true, data: { berhasil: count ?? 0 } }
+}
+
+export async function exportPengeluaran(filter: Omit<PengeluaranFilter, "page">) {
+  await requireRole(["ADMIN", "OPERATOR", "PIMPINAN"])
+  const sb = await createClient()
+
+  let q = sb.from("pengeluaran").select(`
+    tanggal, jumlah, uraian, nomor_bukti,
+    unit:unit_kerja(kode),
+    rekening:rekening_bank(kode),
+    jenis:jenis_pengeluaran(kode)
+  `)
+
+  if (filter.statuses?.length) q = q.in("status", filter.statuses)
+  else if (filter.status) q = q.eq("status", filter.status)
+  if (filter.tgl_awal)    q = q.gte("tanggal", filter.tgl_awal)
+  if (filter.tgl_akhir)   q = q.lte("tanggal", filter.tgl_akhir)
+  if (filter.unit_id)     q = q.eq("unit_kerja_id", filter.unit_id)
+  if (filter.rekening_id) q = q.eq("rekening_bank_id", filter.rekening_id)
+  if (filter.q)           q = q.ilike("nomor_bukti", `%${filter.q}%`)
+
+  const sortCol = filter.sort ?? "tanggal"
+  q = q.order(sortCol, { ascending: filter.order === "asc" })
+
+  const BATCH = 1000
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const allData: any[] = []
+  let offset = 0
+  while (true) {
+    const { data: batch, error } = await q.range(offset, offset + BATCH - 1)
+    if (error) return { ok: false as const, pesan: error.message }
+    if (!batch || batch.length === 0) break
+    allData.push(...batch)
+    if (batch.length < BATCH) break
+    offset += BATCH
+  }
+
+  const resolve = <T>(v: T | T[] | null | undefined): T | null =>
+    v == null ? null : Array.isArray(v) ? (v[0] ?? null) : v
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = allData.map((r: any) => {
+    const unit  = resolve(r.unit)     as { kode?: string } | null
+    const rek   = resolve(r.rekening) as { kode?: string } | null
+    const jenis = resolve(r.jenis)    as { kode?: string } | null
+
+    return {
+      tanggal:       r.tanggal ?? "",
+      kode_unit:     unit?.kode ?? "",
+      kode_rekening: rek?.kode ?? "",
+      kode_jenis:    jenis?.kode ?? "",
+      jumlah:        Number(r.jumlah),
+      nomor_bukti:   r.nomor_bukti ?? "",
+      uraian:        r.uraian ?? "",
+    }
+  })
+
+  return { ok: true as const, rows }
+}
+
+export async function exportPengeluaranDetail(filter: Omit<PengeluaranFilter, "page">) {
+  await requireRole(["ADMIN", "OPERATOR", "PIMPINAN"])
+  const sb = await createClient()
+
+  let q = sb.from("pengeluaran").select(`
+    nomor_bukti, tanggal, jumlah, uraian, status, verified_at, voided_at,
+    jenis:jenis_pengeluaran(kode, nama, kategori:kategori_pengeluaran(kode, nama)),
+    unit:unit_kerja(kode, nama),
+    rekening:rekening_bank(kode, nama_bank, nama_rekening, nomor_rekening),
+    creator:profiles!pengeluaran_created_by_fkey(nama_lengkap),
+    verifier:profiles!pengeluaran_verified_by_fkey(nama_lengkap),
+    voider:profiles!pengeluaran_voided_by_fkey(nama_lengkap)
+  `)
+
+  if (filter.statuses?.length) q = q.in("status", filter.statuses)
+  else if (filter.status) q = q.eq("status", filter.status)
+  if (filter.tgl_awal)    q = q.gte("tanggal", filter.tgl_awal)
+  if (filter.tgl_akhir)   q = q.lte("tanggal", filter.tgl_akhir)
+  if (filter.unit_id)     q = q.eq("unit_kerja_id", filter.unit_id)
+  if (filter.rekening_id) q = q.eq("rekening_bank_id", filter.rekening_id)
+  if (filter.q)           q = q.ilike("nomor_bukti", `%${filter.q}%`)
+
+  const sortCol = filter.sort ?? "tanggal"
+  q = q.order(sortCol, { ascending: filter.order === "asc" })
+
+  const BATCH = 1000
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const allData: any[] = []
+  let offset = 0
+  while (true) {
+    const { data: batch, error } = await q.range(offset, offset + BATCH - 1)
+    if (error) return { ok: false as const, pesan: error.message }
+    if (!batch || batch.length === 0) break
+    allData.push(...batch)
+    if (batch.length < BATCH) break
+    offset += BATCH
+  }
+
+  const resolve = <T>(v: T | T[] | null | undefined): T | null =>
+    v == null ? null : Array.isArray(v) ? (v[0] ?? null) : v
+
+  const formatDate = (dStr: string | null | undefined) => {
+    if (!dStr) return ""
+    try {
+      return new Date(dStr).toLocaleDateString("id-ID", {
+        day: "2-digit", month: "2-digit", year: "numeric",
+      })
+    } catch {
+      return dStr
+    }
+  }
+
+  const formatDateTime = (dStr: string | null | undefined) => {
+    if (!dStr) return ""
+    try {
+      return new Date(dStr).toLocaleString("id-ID", {
+        day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit"
+      })
+    } catch {
+      return dStr
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = allData.map((r: any) => {
+    const jenis    = resolve(r.jenis)    as { kode?: string; nama?: string; kategori?: { kode?: string; nama?: string } | { kode?: string; nama?: string }[] | null } | null
+    const kategori = resolve(jenis?.kategori) as { kode?: string; nama?: string } | null
+    const unit     = resolve(r.unit)     as { kode?: string; nama?: string } | null
+    const rek      = resolve(r.rekening) as { kode?: string; nama_bank?: string; nama_rekening?: string; nomor_rekening?: string } | null
+    const creator  = resolve(r.creator)  as { nama_lengkap?: string } | null
+    const verifier = resolve(r.verifier) as { nama_lengkap?: string } | null
+    const voider   = resolve(r.voider)   as { nama_lengkap?: string } | null
+
+    return {
+      "Nomor Bukti":           r.nomor_bukti ?? "",
+      "Tanggal":               formatDate(r.tanggal),
+      "Status":                r.status === "verified" ? "Terverifikasi" : r.status === "draft" ? "Draft" : r.status === "void" ? "Dibatalkan" : r.status ?? "",
+      "Jumlah (Rp)":           Number(r.jumlah),
+      "Uraian / Keterangan":   r.uraian          ?? "",
+      "Kategori Pengeluaran":  kategori ? `[${kategori.kode ?? ""}] ${kategori.nama ?? ""}` : "",
+      "Jenis Pengeluaran":     jenis ? `[${jenis.kode ?? ""}] ${jenis.nama ?? ""}` : "",
+      "Unit Kerja":            unit ? `[${unit.kode ?? ""}] ${unit.nama ?? ""}` : "",
+      "Bank & Rekening":       rek ? `${rek.nama_bank ?? ""} - ${rek.nomor_rekening ?? ""} (${rek.nama_rekening ?? ""})` : "",
+      "Dibuat Oleh":           creator?.nama_lengkap ?? "",
+      "Diverifikasi Oleh":     verifier?.nama_lengkap ?? "",
+      "Waktu Verifikasi":      formatDateTime(r.verified_at),
+      "Dibatalkan Oleh":       voider?.nama_lengkap ?? "",
+      "Waktu Dibatalkan":      formatDateTime(r.voided_at),
+    }
+  })
+
+  return { ok: true as const, rows }
+}
+

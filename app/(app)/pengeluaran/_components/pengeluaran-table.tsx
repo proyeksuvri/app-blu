@@ -5,7 +5,7 @@ import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
-import { X, CheckCheck, Trash2, ChevronUpIcon, ChevronDownIcon, ChevronsUpDownIcon, RotateCcw } from "lucide-react"
+import { X, CheckCheck, Trash2, ChevronUpIcon, ChevronDownIcon, ChevronsUpDownIcon, RotateCcw, Download } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -13,7 +13,15 @@ import { Button } from "@/components/ui/button"
 import { PenerimaanStatusBadge as StatusBadge } from "@/components/penerimaan-status-badge"
 import { EmptyState } from "@/components/empty-state"
 import { toast } from "sonner"
-import { bulkVerifyPengeluaran, bulkDeletePengeluaran, bulkUnverifyPengeluaran } from "@/app/actions/pengeluaran"
+import {
+  bulkVerifyPengeluaran,
+  bulkDeletePengeluaran,
+  bulkUnverifyPengeluaran,
+  verifyAllDraftPengeluaran,
+  deleteAllPengeluaran,
+  exportPengeluaran,
+} from "@/app/actions/pengeluaran"
+import { PengeluaranDownloadDetail } from "./pengeluaran-download-detail"
 
 const rupiah = (n: number) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n)
@@ -136,81 +144,175 @@ export function PengeluaranTable({ data, isAdmin, sort, order, totalDraft, total
     })
   }
 
+  async function handleDownload() {
+    const statuses = (filter?.status ?? "").split(",").filter(Boolean)
+    const result = await exportPengeluaran({
+      statuses: statuses.length ? statuses : undefined,
+      unit_id: filter?.unit_id || undefined,
+      rekening_id: filter?.rekening_id || undefined,
+      tgl_awal: filter?.tgl_awal,
+      tgl_akhir: filter?.tgl_akhir,
+      q: filter?.q,
+      sort: sort,
+      order: order,
+    })
+    if (!result.ok) { toast.error(result.pesan); return }
+    const XLSX = await import("xlsx")
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.json_to_sheet(result.rows)
+    ws["!cols"] = [16, 16, 16, 16, 14, 18, 30].map((wch) => ({ wch }))
+    XLSX.utils.book_append_sheet(wb, ws, "Pengeluaran")
+    const label = statuses.length === 1 ? `-${statuses[0]}` : ""
+    XLSX.writeFile(wb, `pengeluaran${label}-${new Date().toISOString().slice(0, 10)}.xlsx`)
+  }
+
+  function handleVerifyAll() {
+    if (!confirm(`Verifikasi semua ${totalDraft ?? "?"} draft sekaligus? Tindakan tidak bisa dibatalkan.`)) return
+    startTransition(async () => {
+      const result = await verifyAllDraftPengeluaran()
+      if (!result.ok) { toast.error(result.pesan); return }
+      toast.success(`${result.data.berhasil} transaksi berhasil diverifikasi`)
+      setSelected(new Set())
+      router.refresh()
+    })
+  }
+
+  function handleDeleteAll() {
+    const total = totalDeletable ?? 0
+    if (total <= 0) {
+      toast.info("Tidak ada transaksi draft atau terverifikasi untuk dihapus")
+      return
+    }
+
+    const confirmation = window.prompt(
+      `Tindakan ini akan menghapus permanen ${total} transaksi draft dan terverifikasi. Ketik HAPUS untuk melanjutkan.`
+    )
+    if (confirmation !== "HAPUS") return
+
+    startTransition(async () => {
+      const result = await deleteAllPengeluaran()
+      if (!result.ok) { toast.error(result.pesan); return }
+      toast.success(`${result.data.berhasil} transaksi berhasil dihapus`)
+      setSelected(new Set())
+      router.refresh()
+    })
+  }
+
   return (
     <div className="flex flex-col gap-3">
+      {/* Action Buttons Toolbar */}
+      <div className="flex justify-end gap-2 flex-wrap">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleDownload}
+          disabled={pending}
+          className="gap-1.5 text-muted-foreground hover:text-foreground"
+        >
+          <Download className="h-3.5 w-3.5" />
+          Download Excel
+        </Button>
+        <PengeluaranDownloadDetail filter={filter} sort={sort} order={order} />
+
+        {isAdmin && totalDraft != null && totalDraft > 0 && (
+          <Button
+            variant="default"
+            size="sm"
+            onClick={handleVerifyAll}
+            disabled={pending}
+            className="gap-1.5"
+          >
+            <CheckCheck className="h-3.5 w-3.5" />
+            {pending ? "Memverifikasi..." : `Verifikasi Semua Draft (${totalDraft})`}
+          </Button>
+        )}
+        {isAdmin && totalDeletable != null && totalDeletable > 0 && (
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={handleDeleteAll}
+            disabled={pending}
+            className="gap-1.5"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            {pending ? "Menghapus..." : `Hapus Semua (${totalDeletable})`}
+          </Button>
+        )}
+      </div>
+
       {data.length === 0 ? (
         <EmptyState message="Belum ada transaksi pengeluaran" />
       ) : (
-      <Card className="overflow-hidden p-0">
-        <CardContent className="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow className="border-border hover:bg-transparent">
-              {isAdmin && (
-                <TableHead className="w-10 pl-4">
-                  <Checkbox
-                    checked={allSelected}
-                    onCheckedChange={toggleSelectAll}
-                    className="border-border data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
-                  />
-                </TableHead>
-              )}
-              <TableHead className="text-xs"><SortHead label="Nomor Bukti" col="nomor_bukti" sort={sort} order={order} /></TableHead>
-              <TableHead className="text-xs"><SortHead label="Tanggal" col="tanggal" sort={sort} order={order} /></TableHead>
-              <TableHead className="text-muted-foreground text-xs">Uraian</TableHead>
-              <TableHead className="text-muted-foreground text-xs">Unit</TableHead>
-              <TableHead className="text-muted-foreground text-xs">Jenis</TableHead>
-              <TableHead className="text-xs text-right"><SortHead label="Jumlah" col="jumlah" sort={sort} order={order} /></TableHead>
-              <TableHead className="text-muted-foreground text-xs">Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.map((row) => {
-              const isChecked = selected.has(row.id)
-              return (
-                <TableRow
-                  key={row.id}
-                  className={`border-border/50 hover:bg-muted/20 cursor-pointer ${isChecked ? "bg-muted/40" : ""}`}
-                >
+        <Card className="overflow-hidden p-0">
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border hover:bg-transparent">
                   {isAdmin && (
-                    <TableCell className="pl-4 py-3 w-10">
+                    <TableHead className="w-10 pl-4">
                       <Checkbox
-                        checked={isChecked}
-                        onCheckedChange={() => toggleRow(row.id)}
+                        checked={allSelected}
+                        onCheckedChange={toggleSelectAll}
                         className="border-border data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
                       />
-                    </TableCell>
+                    </TableHead>
                   )}
-                  <TableCell className="py-3">
-                    <Link href={`/pengeluaran/${row.id}`} className="text-sm font-mono text-primary hover:underline">
-                      {row.nomor_bukti}
-                    </Link>
-                  </TableCell>
-                  <TableCell className="text-sm text-foreground/60 py-3">
-                    {format(new Date(row.tanggal), "dd MMM yyyy", { locale: id })}
-                  </TableCell>
-                  <TableCell className="text-sm text-foreground/70 py-3 max-w-[200px] truncate" title={row.uraian ?? ""}>
-                    {row.uraian ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-sm text-foreground/50 py-3">
-                    {(row.unit as { kode?: string } | null)?.kode ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-sm text-foreground/50 py-3">
-                    {(row.jenis as { nama?: string } | null)?.nama ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-sm text-foreground/80 py-3 text-right font-medium">
-                    {rupiah(row.jumlah)}
-                  </TableCell>
-                  <TableCell className="py-3">
-                    <StatusBadge status={row.status as "draft" | "verified" | "void"} />
-                  </TableCell>
+                  <TableHead className="text-xs"><SortHead label="Nomor Bukti" col="nomor_bukti" sort={sort} order={order} /></TableHead>
+                  <TableHead className="text-xs"><SortHead label="Tanggal" col="tanggal" sort={sort} order={order} /></TableHead>
+                  <TableHead className="text-muted-foreground text-xs">Uraian</TableHead>
+                  <TableHead className="text-muted-foreground text-xs">Unit</TableHead>
+                  <TableHead className="text-muted-foreground text-xs">Jenis</TableHead>
+                  <TableHead className="text-xs text-right"><SortHead label="Jumlah" col="jumlah" sort={sort} order={order} /></TableHead>
+                  <TableHead className="text-muted-foreground text-xs">Status</TableHead>
                 </TableRow>
-              )
-            })}
-          </TableBody>
-        </Table>
-        </CardContent>
-      </Card>
+              </TableHeader>
+              <TableBody>
+                {data.map((row) => {
+                  const isChecked = selected.has(row.id)
+                  return (
+                    <TableRow
+                      key={row.id}
+                      className={`border-border/50 hover:bg-muted/20 cursor-pointer ${isChecked ? "bg-muted/40" : ""}`}
+                    >
+                      {isAdmin && (
+                        <TableCell className="pl-4 py-3 w-10">
+                          <Checkbox
+                            checked={isChecked}
+                            onCheckedChange={() => toggleRow(row.id)}
+                            className="border-border data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                          />
+                        </TableCell>
+                      )}
+                      <TableCell className="py-3">
+                        <Link href={`/pengeluaran/${row.id}`} className="text-sm font-mono text-primary hover:underline">
+                          {row.nomor_bukti}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="text-sm text-foreground/60 py-3">
+                        {format(new Date(row.tanggal), "dd MMM yyyy", { locale: id })}
+                      </TableCell>
+                      <TableCell className="text-sm text-foreground/70 py-3 max-w-[200px] truncate" title={row.uraian ?? ""}>
+                        {row.uraian ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-sm text-foreground/50 py-3">
+                        {(row.unit as { kode?: string } | null)?.kode ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-sm text-foreground/50 py-3">
+                        {(row.jenis as { nama?: string } | null)?.nama ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-sm text-foreground/80 py-3 text-right font-medium">
+                        {rupiah(row.jumlah)}
+                      </TableCell>
+                      <TableCell className="py-3">
+                        <StatusBadge status={row.status as "draft" | "verified" | "void"} />
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
 
       {/* Floating bulk action bar */}
