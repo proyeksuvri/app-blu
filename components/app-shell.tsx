@@ -301,7 +301,7 @@ function NavItem({ item }: { item: MenuItem }) {
     return (
       <SidebarMenuItem>
         <SidebarMenuButton
-          render={<Link href={item.href} />}
+          render={<Link href={item.href} prefetch={true} />}
           isActive={isParentActive}
           tooltip={item.label}
         >
@@ -336,7 +336,7 @@ function NavItem({ item }: { item: MenuItem }) {
             return (
               <SidebarMenuSubItem key={child.href}>
                 <SidebarMenuSubButton
-                  render={<Link href={child.href} />}
+                  render={<Link href={child.href} prefetch={true} />}
                   isActive={isChildActive}
                 >
                   <span>{child.label}</span>

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { createClient, createAdminClient } from "@/lib/supabase/server"
 import { requireRole } from "@/lib/session"
+import { invalidateUserProfile } from "@/lib/cache"
 
 type ActionResult<T = void> =
   | { ok: true; data: T }
@@ -83,6 +84,7 @@ export async function updatePengguna(id: string, input: {
     is_active: input.is_active,
   }).eq("id", id)
   if (error) return { ok: false, pesan: error.message }
+  await invalidateUserProfile(id)
   revalidatePath("/pengguna")
   return { ok: true, data: undefined }
 }
@@ -97,5 +99,6 @@ export async function resetPassword(id: string, password: string): Promise<Actio
   const adminSb = await createAdminClient()
   const { error } = await adminSb.auth.admin.updateUserById(id, { password })
   if (error) return { ok: false, pesan: error.message }
+  await invalidateUserProfile(id)
   return { ok: true, data: undefined }
 }

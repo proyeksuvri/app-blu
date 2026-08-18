@@ -93,3 +93,21 @@ export async function invalidateLaporanCache() {
     // Abaikan error Redis
   }
 }
+
+// ─── User Profile Cache ───────────────────────────────────────────────────────
+
+export async function invalidateUserProfile(userId?: string) {
+  const redis = getRedis()
+  if (!redis) return
+
+  try {
+    if (userId) {
+      await redis.del(`user:profile:${userId}`)
+    } else {
+      const keys = await redis.keys("user:profile:*")
+      if (keys.length) await redis.del(...(keys as [string, ...string[]]))
+    }
+  } catch {
+    // Abaikan error Redis
+  }
+}
