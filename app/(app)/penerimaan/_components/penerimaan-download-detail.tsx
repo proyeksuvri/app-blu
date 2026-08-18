@@ -20,11 +20,15 @@ export function DownloadDetailButton({ filter, sort, order }: DownloadDetailButt
     try {
       const statuses = (filter?.status ?? "").split(",").filter(Boolean)
       const jenisIds = (filter?.jenis_id ?? "").split(",").filter(Boolean)
+      const tahun = filter?.tahun ? parseInt(filter.tahun) : undefined
+      const bulan = filter?.bulan ? parseInt(filter.bulan) : undefined
 
       const result = await exportPenerimaanDetail({
         statuses: statuses.length ? statuses : undefined,
         jenis_ids: jenisIds.length ? jenisIds : undefined,
         rekening_id: filter?.rekening_id || undefined,
+        tahun,
+        bulan,
         tgl_awal: filter?.tgl_awal,
         tgl_akhir: filter?.tgl_akhir,
         q: filter?.q,

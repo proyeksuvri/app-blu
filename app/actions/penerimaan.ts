@@ -12,6 +12,8 @@ type ActionResult<T = void> =
 export type PenerimaanFilter = {
   status?: "draft" | "verified" | "void"
   statuses?: string[]
+  tahun?: number
+  bulan?: number
   tgl_awal?: string
   tgl_akhir?: string
   jenis_id?: string
@@ -23,6 +25,35 @@ export type PenerimaanFilter = {
   limit?: number
   sort?: "tanggal_terima" | "jumlah" | "nomor_bukti"
   order?: "asc" | "desc"
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function applyDateFilterPenerimaan(query: any, filter: PenerimaanFilter) {
+  let q = query
+  if (filter.tgl_awal) {
+    q = q.gte("tanggal_terima", filter.tgl_awal)
+  } else if (filter.tahun && filter.bulan) {
+    q = q.gte("tanggal_terima", `${filter.tahun}-${String(filter.bulan).padStart(2, "0")}-01`)
+  } else if (filter.bulan) {
+    const yr = filter.tahun ?? new Date().getFullYear()
+    q = q.gte("tanggal_terima", `${yr}-${String(filter.bulan).padStart(2, "0")}-01`)
+  } else if (filter.tahun) {
+    q = q.gte("tanggal_terima", `${filter.tahun}-01-01`)
+  }
+
+  if (filter.tgl_akhir) {
+    q = q.lte("tanggal_terima", filter.tgl_akhir)
+  } else if (filter.tahun && filter.bulan) {
+    const days = new Date(filter.tahun, filter.bulan, 0).getDate()
+    q = q.lte("tanggal_terima", `${filter.tahun}-${String(filter.bulan).padStart(2, "0")}-${String(days).padStart(2, "0")}`)
+  } else if (filter.bulan) {
+    const yr = filter.tahun ?? new Date().getFullYear()
+    const days = new Date(yr, filter.bulan, 0).getDate()
+    q = q.lte("tanggal_terima", `${yr}-${String(filter.bulan).padStart(2, "0")}-${String(days).padStart(2, "0")}`)
+  } else if (filter.tahun) {
+    q = q.lte("tanggal_terima", `${filter.tahun}-12-31`)
+  }
+  return q
 }
 
 export async function listPenerimaan(filter: PenerimaanFilter = {}) {
@@ -46,8 +77,7 @@ export async function listPenerimaan(filter: PenerimaanFilter = {}) {
 
   if (filter.statuses?.length) q = q.in("status", filter.statuses)
   else if (filter.status) q = q.eq("status", filter.status)
-  if (filter.tgl_awal) q = q.gte("tanggal_terima", filter.tgl_awal)
-  if (filter.tgl_akhir) q = q.lte("tanggal_terima", filter.tgl_akhir)
+  q = applyDateFilterPenerimaan(q, filter)
   if (filter.jenis_ids?.length) q = q.in("jenis_pendapatan_id", filter.jenis_ids)
   else if (filter.jenis_id) q = q.eq("jenis_pendapatan_id", filter.jenis_id)
   if (filter.unit_id) q = q.eq("unit_kerja_id", filter.unit_id)
@@ -234,8 +264,7 @@ export async function exportPenerimaan(filter: Omit<PenerimaanFilter, "page">) {
 
   if (filter.statuses?.length) q = q.in("status", filter.statuses)
   else if (filter.status) q = q.eq("status", filter.status)
-  if (filter.tgl_awal)    q = q.gte("tanggal_terima", filter.tgl_awal)
-  if (filter.tgl_akhir)   q = q.lte("tanggal_terima", filter.tgl_akhir)
+  q = applyDateFilterPenerimaan(q, filter as PenerimaanFilter)
   if (filter.jenis_ids?.length) q = q.in("jenis_pendapatan_id", filter.jenis_ids)
   else if (filter.jenis_id) q = q.eq("jenis_pendapatan_id", filter.jenis_id)
   if (filter.unit_id)     q = q.eq("unit_kerja_id", filter.unit_id)
@@ -393,8 +422,7 @@ export async function exportPenerimaanDetail(filter: Omit<PenerimaanFilter, "pag
 
   if (filter.statuses?.length) q = q.in("status", filter.statuses)
   else if (filter.status) q = q.eq("status", filter.status)
-  if (filter.tgl_awal)    q = q.gte("tanggal_terima", filter.tgl_awal)
-  if (filter.tgl_akhir)   q = q.lte("tanggal_terima", filter.tgl_akhir)
+  q = applyDateFilterPenerimaan(q, filter as PenerimaanFilter)
   if (filter.jenis_ids?.length) q = q.in("jenis_pendapatan_id", filter.jenis_ids)
   else if (filter.jenis_id) q = q.eq("jenis_pendapatan_id", filter.jenis_id)
   if (filter.unit_id)     q = q.eq("unit_kerja_id", filter.unit_id)

@@ -12,6 +12,27 @@ const STATUS_OPTIONS: FilterOption[] = [
   { value: "void", label: "Dibatalkan" },
 ]
 
+const BULAN_OPTIONS: FilterOption[] = [
+  { value: "1", label: "Januari" },
+  { value: "2", label: "Februari" },
+  { value: "3", label: "Maret" },
+  { value: "4", label: "April" },
+  { value: "5", label: "Mei" },
+  { value: "6", label: "Juni" },
+  { value: "7", label: "Juli" },
+  { value: "8", label: "Agustus" },
+  { value: "9", label: "September" },
+  { value: "10", label: "Oktober" },
+  { value: "11", label: "November" },
+  { value: "12", label: "Desember" },
+]
+
+const currentYear = new Date().getFullYear()
+const TAHUN_OPTIONS: FilterOption[] = Array.from({ length: 6 }, (_, i) => {
+  const y = currentYear - i
+  return { value: String(y), label: `Tahun ${y}` }
+})
+
 type PenerimaanFiltersProps = {
   jenisOptions: FilterOption[]
   rekeningOptions: FilterOption[]
@@ -78,6 +99,18 @@ export function PenerimaanFilters({ jenisOptions, rekeningOptions }: PenerimaanF
     <div className="flex flex-wrap items-end gap-3">
       <SearchInput />
       <FacetedFilter
+        title="Bulan"
+        paramKey="bulan"
+        options={BULAN_OPTIONS}
+        placeholder="Semua bulan"
+      />
+      <FacetedFilter
+        title="Tahun"
+        paramKey="tahun"
+        options={TAHUN_OPTIONS}
+        placeholder="Semua tahun"
+      />
+      <FacetedFilter
         title="Status"
         paramKey="status"
         options={STATUS_OPTIONS}
@@ -99,8 +132,7 @@ export function PenerimaanFilters({ jenisOptions, rekeningOptions }: PenerimaanF
           placeholder="Semua rekening"
         />
       )}
-      <FilterReset paramKeys={["status", "jenis_id", "rekening_id", "q"]} />
+      <FilterReset paramKeys={["status", "bulan", "tahun", "jenis_id", "rekening_id", "q"]} />
     </div>
   )
 }
-

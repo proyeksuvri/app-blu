@@ -14,7 +14,18 @@ import { PenerimaanPagination } from "./_components/penerimaan-pagination"
 export default async function PenerimaanPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; jenis_id?: string; rekening_id?: string; q?: string; page?: string; limit?: string; sort?: string; order?: string }>
+  searchParams: Promise<{
+    status?: string
+    bulan?: string
+    tahun?: string
+    jenis_id?: string
+    rekening_id?: string
+    q?: string
+    page?: string
+    limit?: string
+    sort?: string
+    order?: string
+  }>
 }) {
   const profile = await getCurrentProfile()
   if (!profile) redirect("/")
@@ -29,6 +40,9 @@ export default async function PenerimaanPage({
   const statuses = (params.status ?? "").split(",").filter(Boolean)
   const jenisIds = (params.jenis_id ?? "").split(",").filter(Boolean)
   const rekeningIds = (params.rekening_id ?? "").split(",").filter(Boolean)
+  const tahun = params.tahun ? parseInt(params.tahun) : undefined
+  const bulan = params.bulan ? parseInt(params.bulan) : undefined
+  const q = params.q?.trim() || undefined
 
   const isOperator = profile.role.kode === "OPERATOR"
   const isAdmin = profile.role.kode === "ADMIN"
@@ -38,7 +52,9 @@ export default async function PenerimaanPage({
       statuses: statuses.length ? statuses : undefined,
       jenis_ids: jenisIds.length ? jenisIds : undefined,
       rekening_id: rekeningIds.length === 1 ? rekeningIds[0] : undefined,
-      q: params.q || undefined,
+      tahun,
+      bulan,
+      q,
       page: currentPage,
       limit: pageSize,
       sort,
@@ -80,7 +96,14 @@ export default async function PenerimaanPage({
           order={order}
           totalDraft={totalDraft}
           totalDeletable={totalDeletable}
-          filter={{ status: params.status ?? "", jenis_id: params.jenis_id ?? "", rekening_id: params.rekening_id ?? "", q: params.q ?? "" }}
+          filter={{
+            status: params.status ?? "",
+            bulan: params.bulan ?? "",
+            tahun: params.tahun ?? "",
+            jenis_id: params.jenis_id ?? "",
+            rekening_id: params.rekening_id ?? "",
+            q: params.q ?? "",
+          }}
         />
       </Suspense>
 
