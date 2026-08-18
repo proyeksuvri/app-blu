@@ -71,6 +71,36 @@ async function getMasterMaps(): Promise<MasterMaps> {
   return maps
 }
 
+function normalizeDate(val: string): string {
+  if (!val) return ""
+  val = String(val).trim()
+  const ISO_DATE_RE = /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/
+  if (ISO_DATE_RE.test(val)) return val
+
+  const isoMatch = val.match(/^(\d{4})[-/](0[1-9]|1[0-2]|[1-9])[-/](0[1-9]|[12]\d|3[01]|[1-9])/)
+  if (isoMatch) {
+    return `${isoMatch[1]}-${isoMatch[2].padStart(2, "0")}-${isoMatch[3].padStart(2, "0")}`
+  }
+
+  const indoMatch = val.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})/)
+  if (indoMatch) {
+    const day = indoMatch[1].padStart(2, "0")
+    const month = indoMatch[2].padStart(2, "0")
+    let year = indoMatch[3]
+    if (year.length === 2) {
+      const yrNum = parseInt(year, 10)
+      year = yrNum >= 70 ? `19${year}` : `20${year}`
+    }
+    const dNum = parseInt(day, 10)
+    const mNum = parseInt(month, 10)
+    if (mNum >= 1 && mNum <= 12 && dNum >= 1 && dNum <= 31) {
+      return `${year}-${month}-${day}`
+    }
+  }
+
+  return val
+}
+
 export async function parseImportData(rows: ImportRow[]): Promise<ImportPreviewRow[]> {
   await requireRole(["OPERATOR", "ADMIN"])
   const { kategori, jenis, sub, unit, rek, metode } = await getMasterMaps()
@@ -79,8 +109,9 @@ export async function parseImportData(rows: ImportRow[]): Promise<ImportPreviewR
 
   return rows.map((row) => {
     const errors: string[] = []
+    const normalizedTanggal = normalizeDate(row.tanggal_terima)
 
-    if (!row.tanggal_terima || !ISO_DATE_RE.test(row.tanggal_terima)) {
+    if (!normalizedTanggal || !ISO_DATE_RE.test(normalizedTanggal)) {
       errors.push("tanggal_terima tidak valid (format: YYYY-MM-DD)")
     }
     if (!row.jumlah || isNaN(row.jumlah) || row.jumlah <= 0) {
@@ -105,9 +136,20 @@ export async function parseImportData(rows: ImportRow[]): Promise<ImportPreviewR
     if (!rekening_id) errors.push(`kode_rekening "${row.kode_rekening}" tidak ditemukan`)
     if (!metode_id)   errors.push(`kode_metode "${row.kode_metode}" tidak ditemukan`)
 
-    return { ...row, valid: errors.length === 0, errors, jenis_id, sub_id, unit_id, rekening_id, metode_id }
+    return {
+      ...row,
+      tanggal_terima: normalizedTanggal || row.tanggal_terima,
+      valid: errors.length === 0,
+      errors,
+      jenis_id,
+      sub_id,
+      unit_id,
+      rekening_id,
+      metode_id,
+    }
   })
 }
+
 
 const CHUNK_SIZE = 500
 

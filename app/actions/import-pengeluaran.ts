@@ -57,6 +57,36 @@ async function getMasterMaps(): Promise<MasterMaps> {
   return maps
 }
 
+function normalizeDate(val: string): string {
+  if (!val) return ""
+  val = String(val).trim()
+  const ISO_DATE_RE = /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/
+  if (ISO_DATE_RE.test(val)) return val
+
+  const isoMatch = val.match(/^(\d{4})[-/](0[1-9]|1[0-2]|[1-9])[-/](0[1-9]|[12]\d|3[01]|[1-9])/)
+  if (isoMatch) {
+    return `${isoMatch[1]}-${isoMatch[2].padStart(2, "0")}-${isoMatch[3].padStart(2, "0")}`
+  }
+
+  const indoMatch = val.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})/)
+  if (indoMatch) {
+    const day = indoMatch[1].padStart(2, "0")
+    const month = indoMatch[2].padStart(2, "0")
+    let year = indoMatch[3]
+    if (year.length === 2) {
+      const yrNum = parseInt(year, 10)
+      year = yrNum >= 70 ? `19${year}` : `20${year}`
+    }
+    const dNum = parseInt(day, 10)
+    const mNum = parseInt(month, 10)
+    if (mNum >= 1 && mNum <= 12 && dNum >= 1 && dNum <= 31) {
+      return `${year}-${month}-${day}`
+    }
+  }
+
+  return val
+}
+
 export async function parseImportPengeluaranData(
   rows: ImportPengeluaranRow[]
 ): Promise<ImportPengeluaranPreviewRow[]> {
@@ -67,8 +97,9 @@ export async function parseImportPengeluaranData(
 
   return rows.map((row) => {
     const errors: string[] = []
+    const normalizedTanggal = normalizeDate(row.tanggal)
 
-    if (!row.tanggal || !ISO_DATE_RE.test(row.tanggal)) {
+    if (!normalizedTanggal || !ISO_DATE_RE.test(normalizedTanggal)) {
       errors.push("tanggal tidak valid (format: YYYY-MM-DD)")
     }
     if (!row.jumlah || isNaN(row.jumlah) || row.jumlah <= 0) {
@@ -83,9 +114,18 @@ export async function parseImportPengeluaranData(
     if (!rekening_id) errors.push(`kode_rekening "${row.kode_rekening}" tidak ditemukan`)
     if (row.kode_jenis && !jenis_id) errors.push(`kode_jenis "${row.kode_jenis}" tidak ditemukan`)
 
-    return { ...row, valid: errors.length === 0, errors, unit_id, rekening_id, jenis_id }
+    return {
+      ...row,
+      tanggal: normalizedTanggal || row.tanggal,
+      valid: errors.length === 0,
+      errors,
+      unit_id,
+      rekening_id,
+      jenis_id,
+    }
   })
 }
+
 
 const CHUNK_SIZE = 500
 

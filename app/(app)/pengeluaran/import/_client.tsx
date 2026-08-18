@@ -66,12 +66,12 @@ export function ImportPengeluaranClient() {
 
         const importRows: ImportPengeluaranRow[] = rows.map((r, i) => ({
           baris: i + 2,
-          tanggal:       formatDate(r["tanggal"] ?? r["tanggal_transaksi"]),
-          kode_unit:     String(r["kode_unit"] ?? "").toUpperCase(),
-          kode_rekening: String(r["kode_rekening"] ?? "").toUpperCase(),
-          kode_jenis:    r["kode_jenis"] ? String(r["kode_jenis"]).toUpperCase() : undefined,
-          jumlah:        Number(r["jumlah"]) || 0,
-          uraian:        r["uraian"] ? String(r["uraian"]) : undefined,
+          tanggal:       formatDate(r["tanggal"] ?? r["tanggal_transaksi"] ?? r["tgl_transaksi"] ?? r["tgl"]),
+          kode_unit:     String(r["kode_unit"] ?? r["unit_kerja"] ?? r["unit"] ?? "").trim().toUpperCase(),
+          kode_rekening: String(r["kode_rekening"] ?? r["rekening"] ?? r["bank"] ?? "").trim().toUpperCase(),
+          kode_jenis:    (r["kode_jenis"] ?? r["jenis"]) ? String(r["kode_jenis"] ?? r["jenis"]).trim().toUpperCase() : undefined,
+          jumlah:        parseAmount(r["jumlah"] ?? r["nominal"] ?? r["debet"] ?? r["debit"]),
+          uraian:        (r["uraian"] ?? r["keterangan"] ?? r["deskripsi"]) ? String(r["uraian"] ?? r["keterangan"] ?? r["deskripsi"]) : undefined,
         }))
 
         startTransition(async () => {
@@ -226,12 +226,77 @@ export function ImportPengeluaranClient() {
   )
 }
 
+function parseAmount(val: unknown): number {
+  if (typeof val === "number") return val
+  if (!val) return 0
+  let s = String(val).trim()
+  s = s.replace(/^rp\.?\s*/i, "").replace(/\s/g, "")
+  if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) {
+    s = s.replace(/\./g, "").replace(",", ".")
+  } else if (/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(s)) {
+    s = s.replace(/,/g, "")
+  }
+  const n = parseFloat(s)
+  return isNaN(n) ? 0 : n
+}
+
 function formatDate(val: unknown): string {
   if (!val) return ""
-  if (val instanceof Date) return val.toISOString().split("T")[0]
-  const s = String(val)
-  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10)
+  if (val instanceof Date) {
+    if (isNaN(val.getTime())) return ""
+    const y = val.getFullYear()
+    const m = String(val.getMonth() + 1).padStart(2, "0")
+    const d = String(val.getDate()).padStart(2, "0")
+    return `${y}-${m}-${d}`
+  }
+
+  // Handle Excel serial date number (e.g. 45682)
+  if (typeof val === "number" && !isNaN(val) && val > 20000 && val < 80000) {
+    const excelDate = new Date((val - (25567 + 2)) * 86400 * 1000)
+    if (!isNaN(excelDate.getTime())) {
+      const y = excelDate.getUTCFullYear()
+      const m = String(excelDate.getUTCMonth() + 1).padStart(2, "0")
+      const d = String(excelDate.getUTCDate()).padStart(2, "0")
+      return `${y}-${m}-${d}`
+    }
+  }
+
+  let s = String(val).trim()
+  if (!s) return ""
+
+  // 1. Format ISO: YYYY-MM-DD atau YYYY/MM/DD (opsional dengan waktu)
+  const isoMatch = s.match(/^(\d{4})[-/](0[1-9]|1[0-2]|[1-9])[-/](0[1-9]|[12]\d|3[01]|[1-9])/)
+  if (isoMatch) {
+    const y = isoMatch[1]
+    const m = isoMatch[2].padStart(2, "0")
+    const d = isoMatch[3].padStart(2, "0")
+    return `${y}-${m}-${d}`
+  }
+
+  // 2. Format BRI & Indonesia: DD/MM/YY HH:mm:ss atau DD/MM/YYYY atau DD-MM-YYYY
+  const indoMatch = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})/)
+  if (indoMatch) {
+    const day = indoMatch[1].padStart(2, "0")
+    const month = indoMatch[2].padStart(2, "0")
+    let year = indoMatch[3]
+    if (year.length === 2) {
+      const yrNum = parseInt(year, 10)
+      year = yrNum >= 70 ? `19${year}` : `20${year}`
+    }
+    const dNum = parseInt(day, 10)
+    const mNum = parseInt(month, 10)
+    if (mNum >= 1 && mNum <= 12 && dNum >= 1 && dNum <= 31) {
+      return `${year}-${month}-${day}`
+    }
+  }
+
   const d = new Date(s)
-  if (!isNaN(d.getTime())) return d.toISOString().split("T")[0]
+  if (!isNaN(d.getTime())) {
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, "0")
+    const day = String(d.getDate()).padStart(2, "0")
+    return `${y}-${m}-${day}`
+  }
+
   return s
 }
