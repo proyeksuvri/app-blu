@@ -60,7 +60,7 @@ export function FacetedFilter({
         <SelectTrigger className="h-8 w-full rounded-lg bg-input/20 px-3 text-sm font-medium">
           <SelectValue />
         </SelectTrigger>
-        <SelectContent className="rounded-lg p-1" align="start">
+        <SelectContent className="rounded-lg p-1 min-w-max" align="start">
           <SelectGroup>
             {items.map((option) => (
               <SelectItem

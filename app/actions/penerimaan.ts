@@ -18,6 +18,8 @@ export type PenerimaanFilter = {
   tgl_akhir?: string
   jenis_id?: string
   jenis_ids?: string[]
+  sub_id?: string
+  sub_ids?: string[]
   unit_id?: string
   rekening_id?: string
   q?: string
@@ -80,6 +82,8 @@ export async function listPenerimaan(filter: PenerimaanFilter = {}) {
   q = applyDateFilterPenerimaan(q, filter)
   if (filter.jenis_ids?.length) q = q.in("jenis_pendapatan_id", filter.jenis_ids)
   else if (filter.jenis_id) q = q.eq("jenis_pendapatan_id", filter.jenis_id)
+  if (filter.sub_ids?.length) q = q.in("sub_pendapatan_id", filter.sub_ids)
+  else if (filter.sub_id) q = q.eq("sub_pendapatan_id", filter.sub_id)
   if (filter.unit_id) q = q.eq("unit_kerja_id", filter.unit_id)
   if (filter.rekening_id) q = q.eq("rekening_bank_id", filter.rekening_id)
   if (filter.q) q = q.ilike("nomor_bukti", `%${filter.q}%`)
