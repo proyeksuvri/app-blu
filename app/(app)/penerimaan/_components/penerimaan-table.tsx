@@ -5,7 +5,7 @@ import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { format } from "date-fns"
 import { id } from "date-fns/locale"
-import { X, CheckCheck, Trash2, ChevronUpIcon, ChevronDownIcon, ChevronsUpDownIcon, Download, RotateCcw, Pencil } from "lucide-react"
+import { X, CheckCheck, Trash2, ChevronUpIcon, ChevronDownIcon, ChevronsUpDownIcon, Download, RotateCcw, Pencil, Layers } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -13,8 +13,11 @@ import { Button } from "@/components/ui/button"
 import { PenerimaanStatusBadge } from "@/components/penerimaan-status-badge"
 import { EmptyState } from "@/components/empty-state"
 import { toast } from "sonner"
-import { bulkVerifyPenerimaan, bulkDeletePenerimaan, verifyAllDraft, exportPenerimaan, deleteAllPenerimaan, bulkUnverifyPenerimaan } from "@/app/actions/penerimaan"
+import { bulkVerifyPenerimaan, bulkDeletePenerimaan, verifyAllDraft, exportPenerimaan, deleteAllPenerimaan, bulkUnverifyPenerimaan, bulkUpdateSubPendapatan } from "@/app/actions/penerimaan"
 import { DownloadDetailButton } from "./penerimaan-download-detail"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import type { FilterOption } from "@/components/ui/faceted-filter"
 
 
 
@@ -59,18 +62,21 @@ function SortHead({ label, col, sort, order }: { label: string; col: SortKey; so
   )
 }
 
-export function PenerimaanTable({ data, isAdmin, sort, order, totalDraft, totalDeletable, filter }: {
+export function PenerimaanTable({ data, isAdmin, sort, order, totalDraft, totalDeletable, subOptions = [], filter }: {
   data: Row[]
   isAdmin: boolean
   sort: SortKey
   order: "asc" | "desc"
   totalDraft?: number
   totalDeletable?: number
+  subOptions?: FilterOption[]
   filter?: Record<string, string>
 }) {
   const router = useRouter()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [pending, startTransition] = useTransition()
+  const [subDialogOpen, setSubDialogOpen] = useState(false)
+  const [selectedSubId, setSelectedSubId] = useState<string>("")
 
   const allIds = data.map((r) => r.id)
   const draftIds = data.filter((r) => r.status === "draft").map((r) => r.id)
@@ -123,6 +129,19 @@ export function PenerimaanTable({ data, isAdmin, sort, order, totalDraft, totalD
       if (!result.ok) { toast.error(result.pesan); return }
       toast.success(`${result.data.berhasil} transaksi dikembalikan ke draft`)
       setSelected(new Set())
+      router.refresh()
+    })
+  }
+
+  function handleBulkUpdateSub() {
+    if (!selectedSubId) { toast.error("Pilih sub pendapatan terlebih dahulu"); return }
+    startTransition(async () => {
+      const result = await bulkUpdateSubPendapatan(selectedArray, selectedSubId)
+      if (!result.ok) { toast.error(result.pesan); return }
+      toast.success(`${result.data.berhasil} transaksi berhasil diperbarui`)
+      setSelected(new Set())
+      setSubDialogOpen(false)
+      setSelectedSubId("")
       router.refresh()
     })
   }
@@ -200,7 +219,8 @@ export function PenerimaanTable({ data, isAdmin, sort, order, totalDraft, totalD
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <>
+      <div className="flex flex-col gap-3">
       <div className="flex justify-end gap-2">
         <Button
           variant="ghost"
@@ -339,15 +359,27 @@ export function PenerimaanTable({ data, isAdmin, sort, order, totalDraft, totalD
             Batalkan
           </Button>
           {allSelectedAreDraft && (
-            <Button
-              size="sm"
-              onClick={handleBulkVerify}
-              disabled={pending}
-              className="gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
-            >
-              <CheckCheck className="h-3.5 w-3.5" />
-              {pending ? "Memverifikasi..." : `Verifikasi (${selected.size})`}
-            </Button>
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => { setSelectedSubId(""); setSubDialogOpen(true) }}
+                disabled={pending}
+                className="gap-1.5 border-border text-foreground hover:bg-muted/50"
+              >
+                <Layers className="h-3.5 w-3.5" />
+                Ubah Sub ({selected.size})
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleBulkVerify}
+                disabled={pending}
+                className="gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
+              >
+                <CheckCheck className="h-3.5 w-3.5" />
+                {pending ? "Memverifikasi..." : `Verifikasi (${selected.size})`}
+              </Button>
+            </>
           )}
           {allSelectedAreVerified && (
             <Button
@@ -374,5 +406,58 @@ export function PenerimaanTable({ data, isAdmin, sort, order, totalDraft, totalD
         </div>
       )}
     </div>
+
+      {/* Dialog bulk ubah sub pendapatan */}
+      <Dialog open={subDialogOpen} onOpenChange={setSubDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ubah Sub Pendapatan</DialogTitle>
+            <DialogDescription>
+              {selected.size} transaksi draft yang dipilih akan diperbarui sub pendapatannya.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-1.5 py-2">
+            <label className="text-xs font-medium text-foreground">Sub Pendapatan</label>
+            <Select
+              items={subOptions}
+              value={selectedSubId}
+              onValueChange={(v) => setSelectedSubId(v as string)}
+            >
+              <SelectTrigger className="h-9 w-full rounded-lg bg-input/20 text-sm font-medium">
+                <SelectValue placeholder="Pilih sub pendapatan..." />
+              </SelectTrigger>
+              <SelectContent className="rounded-lg p-1 min-w-max" align="start">
+                <SelectGroup>
+                  {subOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value} className="min-h-8 px-3 text-sm font-medium">
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSubDialogOpen(false)}
+              disabled={pending}
+            >
+              Batal
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleBulkUpdateSub}
+              disabled={pending || !selectedSubId}
+              className="gap-1.5"
+            >
+              <Layers className="h-3.5 w-3.5" />
+              {pending ? "Menyimpan..." : "Simpan"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }

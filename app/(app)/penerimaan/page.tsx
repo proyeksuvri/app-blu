@@ -101,6 +101,7 @@ export default async function PenerimaanPage({
           order={order}
           totalDraft={totalDraft}
           totalDeletable={totalDeletable}
+          subOptions={subOptions}
           filter={{
             status: params.status ?? "",
             bulan: params.bulan ?? "",

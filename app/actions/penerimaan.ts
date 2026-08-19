@@ -253,6 +253,25 @@ export async function bulkVerifyPenerimaan(ids: string[]): Promise<ActionResult<
   return { ok: true, data: { berhasil: count ?? ids.length, gagal: 0 } }
 }
 
+export async function bulkUpdateSubPendapatan(
+  ids: string[],
+  sub_pendapatan_id: string
+): Promise<ActionResult<{ berhasil: number }>> {
+  await requireRole(["ADMIN"])
+  if (ids.length === 0) return { ok: false, pesan: "Tidak ada transaksi dipilih" }
+  if (ids.length > 100) return { ok: false, pesan: "Maksimal 100 transaksi sekaligus" }
+  if (!sub_pendapatan_id) return { ok: false, pesan: "Sub pendapatan harus dipilih" }
+  const sb = await createClient()
+  const { error, count } = await sb
+    .from("penerimaan")
+    .update({ sub_pendapatan_id })
+    .in("id", ids)
+    .eq("status", "draft")
+  if (error) return { ok: false, pesan: error.message }
+  revalidatePath("/penerimaan")
+  return { ok: true, data: { berhasil: count ?? ids.length } }
+}
+
 export async function exportPenerimaan(filter: Omit<PenerimaanFilter, "page">) {
   await requireRole(["ADMIN", "OPERATOR", "PIMPINAN"])
   const sb = await createClient()

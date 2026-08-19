@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useTransition } from "react"
+import { useEffect, useRef, useState, useTransition } from "react"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -69,6 +69,10 @@ export function PenerimaanForm({ editId, defaultValues, lockedUnitId }: Props) {
   const watchKategori = watch("kategori_id")
   const watchJenis = watch("jenis_pendapatan_id")
 
+  // Refs untuk mencegah reset nilai saat initial load pada mode edit
+  const isKategoriMounted = useRef(false)
+  const isJenisMounted = useRef(false)
+
   useEffect(() => {
     const sb = createClient()
     Promise.all([
@@ -94,9 +98,14 @@ export function PenerimaanForm({ editId, defaultValues, lockedUnitId }: Props) {
       .order("kode")
       .then(({ data }) => {
         setJenisList(data ?? [])
-        setSubList([])
-        setValue("jenis_pendapatan_id", "" as string)
-        setValue("sub_pendapatan_id", "")
+        // Hanya reset jika bukan initial load (user yang mengubah kategori)
+        if (isKategoriMounted.current) {
+          setSubList([])
+          setValue("jenis_pendapatan_id", "" as string)
+          setValue("sub_pendapatan_id", "")
+        } else {
+          isKategoriMounted.current = true
+        }
       })
   }, [watchKategori, setValue])
 
@@ -110,7 +119,12 @@ export function PenerimaanForm({ editId, defaultValues, lockedUnitId }: Props) {
       .order("kode")
       .then(({ data }) => {
         setSubList(data ?? [])
-        setValue("sub_pendapatan_id", "")
+        // Hanya reset jika bukan initial load (user yang mengubah jenis)
+        if (isJenisMounted.current) {
+          setValue("sub_pendapatan_id", "")
+        } else {
+          isJenisMounted.current = true
+        }
       })
   }, [watchJenis, setValue])
 
