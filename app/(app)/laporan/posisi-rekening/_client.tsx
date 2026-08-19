@@ -523,11 +523,22 @@ export function PosisiRekeningClient({
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div className="flex items-center gap-3 flex-wrap">
                 {/* Filter Rekening */}
-                <Select value={rekeningIdBulanan} onValueChange={(v) => v && handleRekeningBulanan(v)} disabled={pending}>
-                  <SelectTrigger className="w-64 bg-muted/50 border-border text-foreground">
+                <Select
+                  value={rekeningIdBulanan}
+                  onValueChange={(v) => v && handleRekeningBulanan(v)}
+                  disabled={pending}
+                  items={[
+                    { value: "__ALL__", label: "Semua Bank (Konsolidasi)" },
+                    ...rekeningList.map((r) => ({
+                      value: r.id,
+                      label: `${r.nama_bank} (${r.nomor_rekening})`,
+                    })),
+                  ]}
+                >
+                  <SelectTrigger className="w-80 bg-muted/50 border-border text-foreground">
                     <SelectValue placeholder="Pilih Rekening..." />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="min-w-max">
                     <SelectItem value="__ALL__">Semua Bank (Konsolidasi)</SelectItem>
                     {rekeningList.map((r) => (
                       <SelectItem key={r.id} value={r.id}>
@@ -536,6 +547,7 @@ export function PosisiRekeningClient({
                     ))}
                   </SelectContent>
                 </Select>
+
 
                 {/* Filter Tahun */}
                 <Select value={String(tahunBulanan)} onValueChange={(v) => v && handleTahunBulanan(parseInt(v))} disabled={pending}>
