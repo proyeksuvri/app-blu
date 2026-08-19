@@ -35,6 +35,7 @@ const TAHUN_OPTIONS: FilterOption[] = Array.from({ length: 6 }, (_, i) => {
 
 type PenerimaanFiltersProps = {
   jenisOptions: FilterOption[]
+  subOptions: FilterOption[]
   rekeningOptions: FilterOption[]
 }
 
@@ -94,7 +95,7 @@ function SearchInput() {
   )
 }
 
-export function PenerimaanFilters({ jenisOptions, rekeningOptions }: PenerimaanFiltersProps) {
+export function PenerimaanFilters({ jenisOptions, subOptions, rekeningOptions }: PenerimaanFiltersProps) {
   return (
     <div className="flex flex-wrap items-end gap-3">
       <SearchInput />
@@ -124,6 +125,14 @@ export function PenerimaanFilters({ jenisOptions, rekeningOptions }: PenerimaanF
           placeholder="Semua jenis"
         />
       )}
+      {subOptions.length > 0 && (
+        <FacetedFilter
+          title="Sub Pendapatan"
+          paramKey="sub_id"
+          options={subOptions}
+          placeholder="Semua sub pendapatan"
+        />
+      )}
       {rekeningOptions.length > 0 && (
         <FacetedFilter
           title="Rekening Bank"
@@ -132,7 +141,7 @@ export function PenerimaanFilters({ jenisOptions, rekeningOptions }: PenerimaanF
           placeholder="Semua rekening"
         />
       )}
-      <FilterReset paramKeys={["status", "bulan", "tahun", "jenis_id", "rekening_id", "q"]} />
+      <FilterReset paramKeys={["status", "bulan", "tahun", "jenis_id", "sub_id", "rekening_id", "q"]} />
     </div>
   )
 }

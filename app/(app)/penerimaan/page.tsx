@@ -3,7 +3,7 @@ import Link from "next/link"
 import { getCurrentProfile } from "@/lib/session"
 import { redirect } from "next/navigation"
 import { listPenerimaan, countDraft, countDraftAndVerified } from "@/app/actions/penerimaan"
-import { listJenis, listRekening } from "@/app/actions/master"
+import { listJenis, listRekening, listSub } from "@/app/actions/master"
 import { PageHeader } from "@/components/page-header"
 import { Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -19,6 +19,7 @@ export default async function PenerimaanPage({
     bulan?: string
     tahun?: string
     jenis_id?: string
+    sub_id?: string
     rekening_id?: string
     q?: string
     page?: string
@@ -39,6 +40,7 @@ export default async function PenerimaanPage({
 
   const statuses = (params.status ?? "").split(",").filter(Boolean)
   const jenisIds = (params.jenis_id ?? "").split(",").filter(Boolean)
+  const subIds = (params.sub_id ?? "").split(",").filter(Boolean)
   const rekeningIds = (params.rekening_id ?? "").split(",").filter(Boolean)
   const tahun = params.tahun ? parseInt(params.tahun) : undefined
   const bulan = params.bulan ? parseInt(params.bulan) : undefined
@@ -47,10 +49,11 @@ export default async function PenerimaanPage({
   const isOperator = profile.role.kode === "OPERATOR"
   const isAdmin = profile.role.kode === "ADMIN"
 
-  const [{ data, count }, jenisList, rekeningList, totalDraft, totalDeletable] = await Promise.all([
+  const [{ data, count }, jenisList, subList, rekeningList, totalDraft, totalDeletable] = await Promise.all([
     listPenerimaan({
       statuses: statuses.length ? statuses : undefined,
       jenis_ids: jenisIds.length ? jenisIds : undefined,
+      sub_ids: subIds.length ? subIds : undefined,
       rekening_id: rekeningIds.length === 1 ? rekeningIds[0] : undefined,
       tahun,
       bulan,
@@ -61,12 +64,14 @@ export default async function PenerimaanPage({
       order,
     }),
     listJenis(),
+    listSub(),
     listRekening(),
     isAdmin ? countDraft() : Promise.resolve(0),
     isAdmin ? countDraftAndVerified() : Promise.resolve(0),
   ])
 
   const jenisOptions = jenisList.map((j) => ({ value: j.id, label: j.nama }))
+  const subOptions = subList.map((s) => ({ value: s.id, label: `${s.jenis?.kode ?? ""} — ${s.nama}` }))
   const rekeningOptions = rekeningList.map((r) => ({ value: r.id, label: `${r.nama_bank} — ${r.nomor_rekening}` }))
 
   return (
@@ -85,7 +90,7 @@ export default async function PenerimaanPage({
       />
 
       <Suspense>
-        <PenerimaanFilters jenisOptions={jenisOptions} rekeningOptions={rekeningOptions} />
+        <PenerimaanFilters jenisOptions={jenisOptions} subOptions={subOptions} rekeningOptions={rekeningOptions} />
       </Suspense>
 
       <Suspense>
@@ -101,6 +106,7 @@ export default async function PenerimaanPage({
             bulan: params.bulan ?? "",
             tahun: params.tahun ?? "",
             jenis_id: params.jenis_id ?? "",
+            sub_id: params.sub_id ?? "",
             rekening_id: params.rekening_id ?? "",
             q: params.q ?? "",
           }}
