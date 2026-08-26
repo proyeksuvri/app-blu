@@ -175,11 +175,13 @@ export function LaporanPenerimaanMahasiswaClient({
             <span className="text-[11px] font-medium text-muted-foreground">Status</span>
             <Select
               value={filter.status}
-              onValueChange={(v) => applyFilter({ status: v })}
+              onValueChange={(v) => { if (v) applyFilter({ status: v }) }}
               disabled={pending}
             >
               <SelectTrigger className="h-8 w-32 bg-muted/50 text-xs">
-                <SelectValue placeholder="Status" />
+                <SelectValue>
+                  {filter.status === "all" ? "Semua Status" : filter.status === "verified" ? "Verified" : filter.status === "draft" ? "Draft" : filter.status === "void" ? "Void" : "Status"}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Semua Status</SelectItem>
