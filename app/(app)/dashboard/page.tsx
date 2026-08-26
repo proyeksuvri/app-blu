@@ -36,7 +36,7 @@ export default async function DashboardPage({
       {/* Quick actions (operator) */}
       {isOperator && (
         <div className="flex gap-3">
-          <Button size="sm" render={<Link href="/penerimaan/baru" />}>
+          <Button size="sm" nativeButton={false} render={<Link href="/penerimaan/baru" />}>
             <Plus className="h-4 w-4" />
             Input Penerimaan
           </Button>

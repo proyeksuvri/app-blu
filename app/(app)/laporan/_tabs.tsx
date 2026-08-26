@@ -12,6 +12,7 @@ const tabs = [
   { label: "Realisasi Pendapatan BLU", href: "/laporan/realisasi-pendapatan", value: "realisasi-pendapatan" },
   { label: "Rekening Koran", href: "/laporan/rekening-koran", value: "rekening-koran" },
   { label: "Posisi Rekening", href: "/laporan/posisi-rekening", value: "posisi-rekening" },
+  { label: "Penerimaan Mahasiswa", href: "/laporan/penerimaan-mahasiswa", value: "penerimaan-mahasiswa" },
 ]
 
 export function LaporanTabs() {

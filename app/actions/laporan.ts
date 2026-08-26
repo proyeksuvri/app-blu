@@ -1793,3 +1793,148 @@ export async function rekapPosisiKasBulanan(
   }, 300)
 }
 
+// ─── Laporan Penerimaan Mahasiswa ───────────────────────────────────────────
+
+export type PenerimaanMahasiswaRow = {
+  id: string
+  nomor_bukti: string
+  tanggal_terima: string
+  virtual_akun: string
+  nim: string
+  nama_mahasiswa: string
+  fakultas: string | null
+  prodi: string | null
+  periode: string | null
+  nama_jenis: string
+  nama_rekening: string
+  jumlah: number
+  status: string
+}
+
+export type PenerimaanMahasiswaResult = {
+  rows: PenerimaanMahasiswaRow[]
+  totalNominal: number
+  totalTransaksi: number
+  totalMahasiswaUnik: number
+  count: number
+}
+
+export async function getPenerimaanMahasiswa(opts: {
+  tglAwal?: string
+  tglAkhir?: string
+  prodi?: string
+  fakultas?: string
+  status?: string
+  q?: string
+  page?: number
+  limit?: number
+} = {}): Promise<PenerimaanMahasiswaResult> {
+  await requireRole(["ADMIN", "PIMPINAN"])
+  const sb = await createClient()
+
+  let q = sb
+    .from("penerimaan")
+    .select(`
+      id,
+      nomor_bukti,
+      tanggal_terima,
+      virtual_akun,
+      jumlah,
+      status,
+      jenis:jenis_pendapatan(nama),
+      rekening:rekening_bank(nama_bank, nama_rekening, nomor_rekening)
+    `, { count: "exact" })
+    .not("virtual_akun", "is", null)
+    .order("tanggal_terima", { ascending: false })
+
+  if (opts.tglAwal) q = q.gte("tanggal_terima", opts.tglAwal)
+  if (opts.tglAkhir) q = q.lte("tanggal_terima", opts.tglAkhir)
+  if (opts.status && opts.status !== "all") q = q.eq("status", opts.status)
+
+  const limit = [25, 50, 100, 200].includes(opts.limit ?? 0) ? opts.limit! : 50
+  const page = Math.max(1, opts.page ?? 1)
+  const offset = (page - 1) * limit
+
+  const { data: rawPenerimaan } = await q
+
+  if (!rawPenerimaan || rawPenerimaan.length === 0) {
+    return { rows: [], totalNominal: 0, totalTransaksi: 0, totalMahasiswaUnik: 0, count: 0 }
+  }
+
+  // Fetch matched mahasiswa for virtual_akuns
+  const vaList = Array.from(new Set(rawPenerimaan.map((p) => p.virtual_akun).filter(Boolean))) as string[]
+  const mhsMap = new Map<string, { nim: string; nama_mahasiswa: string; fakultas: string | null; prodi: string | null; periode: string | null }>()
+
+  if (vaList.length > 0) {
+    const CHUNK = 500
+    for (let i = 0; i < vaList.length; i += CHUNK) {
+      const chunk = vaList.slice(i, i + CHUNK)
+      const { data: mhsData } = await sb
+        .from("mahasiswa")
+        .select("no_virtual_akun, nim, nama_mahasiswa, fakultas, prodi, periode")
+        .in("no_virtual_akun", chunk)
+
+      for (const m of mhsData ?? []) {
+        mhsMap.set(m.no_virtual_akun, m)
+      }
+    }
+  }
+
+  // Join data in memory
+  let allRows: PenerimaanMahasiswaRow[] = rawPenerimaan.map((p) => {
+    const m = p.virtual_akun ? mhsMap.get(p.virtual_akun) : null
+    const jenis = p.jenis as { nama?: string } | null
+    const rek = p.rekening as { nama_bank?: string; nama_rekening?: string; nomor_rekening?: string } | null
+    return {
+      id: p.id,
+      nomor_bukti: p.nomor_bukti,
+      tanggal_terima: p.tanggal_terima,
+      virtual_akun: p.virtual_akun!,
+      nim: m?.nim ?? "—",
+      nama_mahasiswa: m?.nama_mahasiswa ?? "—",
+      fakultas: m?.fakultas ?? null,
+      prodi: m?.prodi ?? null,
+      periode: m?.periode ?? null,
+      nama_jenis: jenis?.nama ?? "—",
+      nama_rekening: rek ? `${rek.nama_bank} (${rek.nomor_rekening})` : "—",
+      jumlah: Number(p.jumlah),
+      status: p.status,
+    }
+  })
+
+  // Filter in memory for fakultas, prodi, and search query
+  if (opts.fakultas && opts.fakultas !== "all") {
+    allRows = allRows.filter((r) => r.fakultas === opts.fakultas)
+  }
+  if (opts.prodi && opts.prodi !== "all") {
+    allRows = allRows.filter((r) => r.prodi === opts.prodi)
+  }
+  if (opts.q?.trim()) {
+    const qLower = opts.q.trim().toLowerCase()
+    allRows = allRows.filter(
+      (r) =>
+        r.nomor_bukti.toLowerCase().includes(qLower) ||
+        r.virtual_akun.toLowerCase().includes(qLower) ||
+        r.nim.toLowerCase().includes(qLower) ||
+        r.nama_mahasiswa.toLowerCase().includes(qLower) ||
+        (r.prodi && r.prodi.toLowerCase().includes(qLower))
+    )
+  }
+
+  const totalNominal = allRows.reduce((acc, r) => acc + r.jumlah, 0)
+  const totalTransaksi = allRows.length
+  const uniqueMhs = new Set(allRows.map((r) => r.virtual_akun)).size
+
+  // Paginate
+  const pagedRows = allRows.slice(offset, offset + limit)
+
+  return {
+    rows: pagedRows,
+    totalNominal,
+    totalTransaksi,
+    totalMahasiswaUnik: uniqueMhs,
+    count: allRows.length,
+  }
+}
+
+

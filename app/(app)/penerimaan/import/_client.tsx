@@ -7,17 +7,19 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { toast } from "sonner"
 import { parseImportData, commitImport, type ImportRow, type ImportPreviewRow } from "@/app/actions/import-penerimaan"
+import { GDriveImportTab } from "@/components/gdrive-import-tab"
 
 const TEMPLATE_HEADERS = [
-  "tanggal_transaksi", "kode_kategori", "kode_jenis", "kode_sub", "kode_unit",
+  "tanggal_transaksi", "kode_kategori", "kode_jenis", "kode_sub", "virtual_akun", "kode_unit",
   "kode_rekening", "kode_metode", "jumlah", "nomor_bukti", "uraian"
 ]
 
 const TEMPLATE_SAMPLE = [
-  ["2026-05-01", "KAT-01", "UKT", "UKT-REG", "FSH", "BSI", "TRANSFER_BANK", "5000000", "REF001", "UKT Semester Ganjil"],
-  ["2026-05-01", "KAT-01", "WSD", "", "FSH", "BSI", "TUNAI", "2500000", "", "Biaya Wisuda"],
+  ["2026-05-01", "KAT-01", "UKT", "UKT-REG", "7199823020100950", "FSH", "BSI", "TRANSFER_BANK", "5000000", "REF001", "UKT Semester Ganjil"],
+  ["2026-05-01", "KAT-01", "WSD", "", "", "FSH", "BSI", "TUNAI", "2500000", "", "Biaya Wisuda"],
 ]
 
 async function downloadTemplate() {
@@ -66,6 +68,7 @@ export function ImportClient() {
           kode_kategori: String(r["kode_kategori"] ?? r["kategori_pendapatan"] ?? r["kategori"] ?? "").trim().toUpperCase(),
           kode_jenis: String(r["kode_jenis"] ?? r["jenis"] ?? "").trim().toUpperCase(),
           kode_sub: (r["kode_sub"] ?? r["sub"]) ? String(r["kode_sub"] ?? r["sub"]).trim().toUpperCase() : undefined,
+          virtual_akun: (r["virtual_akun"] ?? r["no_virtual_akun"] ?? r["no_va"] ?? r["va"]) ? String(r["virtual_akun"] ?? r["no_virtual_akun"] ?? r["no_va"] ?? r["va"]).trim() : undefined,
           kode_unit: String(r["kode_unit"] ?? r["unit_kerja"] ?? r["unit"] ?? "").trim().toUpperCase(),
           kode_rekening: String(r["kode_rekening"] ?? r["rekening"] ?? r["bank"] ?? "").trim().toUpperCase(),
           kode_metode: String(r["kode_metode"] ?? r["metode"] ?? "").trim().toUpperCase(),
@@ -192,36 +195,52 @@ export function ImportClient() {
   // Upload step
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex justify-end">
-        <Button variant="ghost" size="sm" onClick={downloadTemplate} className="gap-1.5">
-          <Download className="h-4 w-4" />
-          Download Template
-        </Button>
-      </div>
+      <Tabs defaultValue="upload">
+        <TabsList className="mb-4">
+          <TabsTrigger value="upload">Upload File</TabsTrigger>
+          <TabsTrigger value="gdrive">Dari Google Drive</TabsTrigger>
+        </TabsList>
 
-      <label
-        onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={handleDrop}
-        className={`flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed py-16 cursor-pointer transition-colors
-          ${dragOver ? "border-primary/50 bg-primary/5" : "border-border hover:border-border/80"}`}
-      >
-        <Upload className="h-8 w-8 text-muted-foreground/50" />
-        <div className="text-center">
-          <p className="text-sm text-muted-foreground">Drag & drop file di sini, atau klik untuk pilih</p>
-          <p className="text-xs text-muted-foreground/50 mt-1">Format: .xlsx, .xls, .csv — Maks. 2000 baris</p>
-        </div>
-        <input type="file" accept=".xlsx,.xls,.csv" onChange={handleFile} className="hidden" />
-      </label>
+        <TabsContent value="upload" className="flex flex-col gap-4 mt-0">
+          <div className="flex justify-end">
+            <Button variant="ghost" size="sm" onClick={downloadTemplate} className="gap-1.5">
+              <Download className="h-4 w-4" />
+              Download Template
+            </Button>
+          </div>
 
-      <Alert>
-        <Info className="h-4 w-4" />
-        <AlertTitle>Kolom yang diperlukan</AlertTitle>
-        <AlertDescription>
-          <code className="font-mono text-xs leading-relaxed">{TEMPLATE_HEADERS.join(" | ")}</code>
-          <p className="mt-1">Kode menggunakan UPPERCASE. Download template untuk contoh.</p>
-        </AlertDescription>
-      </Alert>
+          <label
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={handleDrop}
+            className={`flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed py-16 cursor-pointer transition-colors
+              ${dragOver ? "border-primary/50 bg-primary/5" : "border-border hover:border-border/80"}`}
+          >
+            <Upload className="h-8 w-8 text-muted-foreground/50" />
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground">Drag & drop file di sini, atau klik untuk pilih</p>
+              <p className="text-xs text-muted-foreground/50 mt-1">Format: .xlsx, .xls, .csv — Maks. 2000 baris</p>
+            </div>
+            <input type="file" accept=".xlsx,.xls,.csv" onChange={handleFile} className="hidden" />
+          </label>
+
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertTitle>Kolom yang diperlukan</AlertTitle>
+            <AlertDescription>
+              <code className="font-mono text-xs leading-relaxed">{TEMPLATE_HEADERS.join(" | ")}</code>
+              <p className="mt-1">Kode menggunakan UPPERCASE. Download template untuk contoh.</p>
+            </AlertDescription>
+          </Alert>
+        </TabsContent>
+
+        <TabsContent value="gdrive" className="mt-0">
+          <GDriveImportTab
+            onFile={processFile}
+            hint="Setelah file berhasil diambil, pratinjau data akan muncul otomatis."
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

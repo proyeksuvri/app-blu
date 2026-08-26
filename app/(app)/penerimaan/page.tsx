@@ -81,7 +81,7 @@ export default async function PenerimaanPage({
         description={`${count} transaksi`}
         action={
           isOperator ? (
-            <Button size="sm" render={<Link href="/penerimaan/baru" />}>
+            <Button size="sm" nativeButton={false} render={<Link href="/penerimaan/baru" />}>
               <Plus className="h-4 w-4" />
               Input Baru
             </Button>

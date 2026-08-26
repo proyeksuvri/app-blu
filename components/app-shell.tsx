@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation"
 import {
   Building2, LayoutDashboard, BarChart3,
   Users, LogOut, ChevronRight, BookMarked, Search, BookOpen, FolderMinus,
-  TrendingUp, TrendingDown, Database,
+  TrendingUp, TrendingDown, Database, GraduationCap, FileSpreadsheet,
 } from "lucide-react"
 import { cn, getInitials } from "@/lib/utils"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -124,17 +124,31 @@ function getMenuGroups(role: string): MenuGroup[] {
       { label: "Register Penerimaan", href: "/laporan/bku-penerimaan" },
       { label: "Realisasi Pendapatan BLU", href: "/laporan/realisasi-pendapatan" },
       { label: "Posisi Rekening", href: "/laporan/posisi-rekening" },
+      { label: "Penerimaan Mahasiswa", href: "/laporan/penerimaan-mahasiswa" },
     ],
   }
+  const mahasiswa: MenuItem = {
+    label: "Mahasiswa", href: "/mahasiswa", icon: GraduationCap,
+    children: [
+      { label: "Data Mahasiswa", href: "/mahasiswa" },
+      { label: "Import Excel", href: "/mahasiswa/import" },
+    ],
+  }
+
   const pengguna: MenuItem = { label: "Pengguna", href: "/pengguna", icon: Users }
-  const panduan: MenuItem = { label: "Panduan & Aturan", href: "/panduan", icon: BookMarked }
+  const panduan: MenuItem  = { label: "Panduan & Aturan", href: "/panduan", icon: BookMarked }
+  const realisasiPengesahan: MenuItem = {
+    label: "Realisasi Pengesahan",
+    href: "/realisasi-pengesahan",
+    icon: FileSpreadsheet,
+  }
 
   if (role === "ADMIN") {
     return [
       { label: "Umum", items: [dashboard] },
       { label: "Transaksi", items: [penerimaan, pengeluaran] },
-      { label: "Konfigurasi", items: [masterPendapatan, masterPengeluaran, masterUmum, pengguna] },
-      { label: "Lainnya", items: [laporan, panduan] },
+      { label: "Konfigurasi", items: [masterPendapatan, masterPengeluaran, masterUmum, mahasiswa, pengguna] },
+      { label: "Lainnya", items: [laporan, realisasiPengesahan, panduan] },
     ]
   }
 
@@ -149,7 +163,7 @@ function getMenuGroups(role: string): MenuGroup[] {
   if (role === "PIMPINAN") {
     return [
       { label: "Umum", items: [dashboard] },
-      { label: "Lainnya", items: [laporan, panduan] },
+      { label: "Lainnya", items: [laporan, realisasiPengesahan, panduan] },
     ]
   }
 
@@ -183,7 +197,8 @@ const SEGMENT_LABELS: Record<string, string> = {
   laporan: "Laporan",
   "buku-kas-umum": "Buku Kas Umum",
   "bku-penerimaan": "BKU Penerimaan",
-  panduan: "Panduan & Aturan",
+  "panduan": "Panduan & Aturan",
+  "realisasi-pengesahan": "Realisasi Pengesahan",
 }
 
 function isUUID(s: string) {

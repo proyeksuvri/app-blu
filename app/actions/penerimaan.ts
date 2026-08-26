@@ -123,6 +123,7 @@ export type PenerimaanInput = {
   tanggal_setor?: string
   jenis_pendapatan_id: string
   sub_pendapatan_id?: string
+  virtual_akun?: string
   unit_kerja_id: string
   rekening_bank_id: string
   jenis_pemindahan_kas_id: string
@@ -144,6 +145,7 @@ export async function createPenerimaan(input: PenerimaanInput): Promise<ActionRe
     ...input,
     nomor_bukti: nomorData,
     sub_pendapatan_id: input.sub_pendapatan_id || null,
+    virtual_akun: input.virtual_akun?.trim() || null,
     tanggal_setor: input.tanggal_setor || null,
     nomor_referensi: input.nomor_referensi || null,
     uraian: input.uraian || null,
@@ -172,6 +174,7 @@ export async function updatePenerimaan(id: string, input: PenerimaanInput): Prom
   const { error } = await sb.from("penerimaan").update({
     ...input,
     sub_pendapatan_id: input.sub_pendapatan_id || null,
+    virtual_akun: input.virtual_akun?.trim() || null,
     tanggal_setor: input.tanggal_setor || null,
     nomor_referensi: input.nomor_referensi || null,
     uraian: input.uraian || null,

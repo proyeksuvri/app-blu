@@ -16,11 +16,15 @@ import { toast } from "sonner"
 import { createPenerimaan, updatePenerimaan, type PenerimaanInput } from "@/app/actions/penerimaan"
 import { createClient } from "@/lib/supabase/client"
 
+import { GraduationCap, Search, X, Check, Loader2 } from "lucide-react"
+import { searchMahasiswaByVirtualAkun, getMahasiswaByVirtualAkun, type MahasiswaRow } from "@/app/actions/mahasiswa"
+
 const schema = z.object({
   tanggal_terima: z.string().min(1, "Wajib diisi"),
   kategori_id: z.string().uuid("Wajib dipilih"),
   jenis_pendapatan_id: z.string().uuid("Wajib dipilih"),
   sub_pendapatan_id: z.string().optional(),
+  virtual_akun: z.string().optional(),
   unit_kerja_id: z.string().uuid("Wajib dipilih"),
   rekening_bank_id: z.string().uuid("Wajib dipilih"),
   jenis_pemindahan_kas_id: z.string().uuid("Wajib dipilih"),
@@ -57,6 +61,12 @@ export function PenerimaanForm({ editId, defaultValues, lockedUnitId }: Props) {
   const [rekeningList, setRekeningList] = useState<OptionItem[]>([])
   const [metodeList, setMetodeList] = useState<OptionItem[]>([])
 
+  // State Mahasiswa Lookup
+  const [mhsSearch, setMhsSearch] = useState("")
+  const [mhsSuggestions, setMhsSuggestions] = useState<{ no_virtual_akun: string; nim: string; nama_mahasiswa: string; prodi: string | null }[]>([])
+  const [mhsSearching, setMhsSearching] = useState(false)
+  const [selectedMhs, setSelectedMhs] = useState<MahasiswaRow | null>(null)
+
   const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -65,6 +75,32 @@ export function PenerimaanForm({ editId, defaultValues, lockedUnitId }: Props) {
       unit_kerja_id: lockedUnitId ?? defaultValues?.unit_kerja_id,
     },
   })
+
+  // Load student info on edit if virtual_akun exists
+  useEffect(() => {
+    if (defaultValues?.virtual_akun) {
+      getMahasiswaByVirtualAkun(defaultValues.virtual_akun).then((mhs) => {
+        if (mhs) setSelectedMhs(mhs)
+      })
+    }
+  }, [defaultValues?.virtual_akun])
+
+  // Live search mahasiswa suggestions
+  useEffect(() => {
+    if (mhsSearch.trim().length >= 3) {
+      setMhsSearching(true)
+      const timer = setTimeout(() => {
+        searchMahasiswaByVirtualAkun(mhsSearch.trim(), 5).then((res) => {
+          setMhsSuggestions(res)
+          setMhsSearching(false)
+        })
+      }, 300)
+      return () => clearTimeout(timer)
+    } else {
+      setMhsSuggestions([])
+      setMhsSearching(false)
+    }
+  }, [mhsSearch])
 
   const watchKategori = watch("kategori_id")
   const watchJenis = watch("jenis_pendapatan_id")
@@ -134,6 +170,7 @@ export function PenerimaanForm({ editId, defaultValues, lockedUnitId }: Props) {
         tanggal_terima: values.tanggal_terima,
         jenis_pendapatan_id: values.jenis_pendapatan_id,
         sub_pendapatan_id: values.sub_pendapatan_id || undefined,
+        virtual_akun: values.virtual_akun?.trim() || undefined,
         unit_kerja_id: values.unit_kerja_id,
         rekening_bank_id: values.rekening_bank_id,
         jenis_pemindahan_kas_id: values.jenis_pemindahan_kas_id,
@@ -248,6 +285,88 @@ export function PenerimaanForm({ editId, defaultValues, lockedUnitId }: Props) {
                   </Select>
                 )} />
               </Field>
+            </div>
+          </div>
+
+          <div className={sectionCls}>
+            <div className={sectionHeadCls}>
+              <p className={sectionTitleCls}>Data Mahasiswa (Opsional)</p>
+            </div>
+            <div className={sectionBodyCls}>
+              <div className="flex flex-col gap-2">
+                <Field>
+                  <FieldLabel>No. Virtual Akun Mahasiswa</FieldLabel>
+                  <div className="relative">
+                    <Input
+                      placeholder="Ketik No. VA, NIM, atau Nama..."
+                      value={watch("virtual_akun") ?? ""}
+                      onChange={(e) => {
+                        setValue("virtual_akun", e.target.value)
+                        setMhsSearch(e.target.value)
+                        if (!e.target.value) setSelectedMhs(null)
+                      }}
+                      className={inputCls}
+                    />
+                    {mhsSearching && (
+                      <Loader2 className="absolute right-2.5 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
+                    )}
+                  </div>
+                </Field>
+
+                {/* Suggestions popup */}
+                {mhsSuggestions.length > 0 && (
+                  <div className="rounded-lg border border-border bg-popover p-1 shadow-md">
+                    {mhsSuggestions.map((m) => (
+                      <button
+                        key={m.no_virtual_akun}
+                        type="button"
+                        onClick={() => {
+                          setValue("virtual_akun", m.no_virtual_akun)
+                          getMahasiswaByVirtualAkun(m.no_virtual_akun).then((fullMhs) => {
+                            if (fullMhs) setSelectedMhs(fullMhs)
+                          })
+                          setMhsSuggestions([])
+                          setMhsSearch("")
+                        }}
+                        className="flex w-full items-center justify-between rounded px-2.5 py-1.5 text-left text-xs hover:bg-accent transition-colors"
+                      >
+                        <div>
+                          <p className="font-medium text-foreground">{m.nama_mahasiswa}</p>
+                          <p className="text-[11px] text-muted-foreground font-mono">NIM: {m.nim} • VA: {m.no_virtual_akun}</p>
+                        </div>
+                        <span className="text-[11px] text-muted-foreground">{m.prodi ?? ""}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Selected Student Card */}
+                {selectedMhs && (
+                  <div className="flex items-start justify-between rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs">
+                    <div className="flex gap-2.5">
+                      <GraduationCap className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                      <div className="flex flex-col gap-0.5">
+                        <p className="font-semibold text-foreground">{selectedMhs.nama_mahasiswa}</p>
+                        <p className="text-muted-foreground font-mono">NIM: {selectedMhs.nim} • No. VA: {selectedMhs.no_virtual_akun}</p>
+                        <p className="text-muted-foreground">
+                          {selectedMhs.fakultas ? `${selectedMhs.fakultas} — ` : ""}{selectedMhs.prodi ?? ""} {selectedMhs.periode ? `(${selectedMhs.periode})` : ""}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setValue("virtual_akun", "")
+                        setSelectedMhs(null)
+                      }}
+                      className="text-muted-foreground hover:text-foreground p-1"
+                      title="Hapus tautan mahasiswa"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

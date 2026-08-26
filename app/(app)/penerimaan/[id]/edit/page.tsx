@@ -32,6 +32,7 @@ export default async function PenerimaanEditPage({ params }: { params: Promise<{
           kategori_id: jenis?.kategori?.id ?? "",
           jenis_pendapatan_id: data.jenis_pendapatan_id,
           sub_pendapatan_id: data.sub_pendapatan_id ?? undefined,
+          virtual_akun: data.virtual_akun ?? undefined,
           unit_kerja_id: data.unit_kerja_id,
           rekening_bank_id: data.rekening_bank_id,
           jenis_pemindahan_kas_id: data.jenis_pemindahan_kas_id,

@@ -11,6 +11,7 @@ export type ImportRow = {
   kode_kategori: string
   kode_jenis: string
   kode_sub?: string
+  virtual_akun?: string
   kode_unit: string
   kode_rekening: string
   kode_metode: string
@@ -184,6 +185,7 @@ export async function commitImport(rows: ImportPreviewRow[]): Promise<{ ok: bool
     tanggal_terima: row.tanggal_terima,
     jenis_pendapatan_id: row.jenis_id!,
     sub_pendapatan_id: row.sub_id || null,
+    virtual_akun: row.virtual_akun || null,
     unit_kerja_id: row.unit_id!,
     rekening_bank_id: row.rekening_id!,
     jenis_pemindahan_kas_id: row.metode_id!,
