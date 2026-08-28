@@ -1,7 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { createClient } from "@/lib/supabase/server"
+import { createClient, createAdminClient } from "@/lib/supabase/server"
 import { requireRole, getCurrentProfile } from "@/lib/session"
 import { invalidateDashboardCache, invalidateLaporanCache } from "@/lib/cache"
 
@@ -277,7 +277,7 @@ export async function bulkUpdateSubPendapatan(
 
 export async function exportPenerimaan(filter: Omit<PenerimaanFilter, "page">) {
   await requireRole(["ADMIN", "OPERATOR", "PIMPINAN"])
-  const sb = await createClient()
+  const sb = await createAdminClient()
 
   let q = sb.from("penerimaan").select(`
     tanggal_terima, nomor_referensi, jumlah, uraian,
@@ -293,12 +293,14 @@ export async function exportPenerimaan(filter: Omit<PenerimaanFilter, "page">) {
   q = applyDateFilterPenerimaan(q, filter as PenerimaanFilter)
   if (filter.jenis_ids?.length) q = q.in("jenis_pendapatan_id", filter.jenis_ids)
   else if (filter.jenis_id) q = q.eq("jenis_pendapatan_id", filter.jenis_id)
+  if (filter.sub_ids?.length) q = q.in("sub_pendapatan_id", filter.sub_ids)
+  else if (filter.sub_id) q = q.eq("sub_pendapatan_id", filter.sub_id)
   if (filter.unit_id)     q = q.eq("unit_kerja_id", filter.unit_id)
   if (filter.rekening_id) q = q.eq("rekening_bank_id", filter.rekening_id)
   if (filter.q)           q = q.ilike("nomor_bukti", `%${filter.q}%`)
 
   const sortCol = filter.sort ?? "tanggal_terima"
-  q = q.order(sortCol, { ascending: filter.order === "asc" })
+  q = q.order(sortCol, { ascending: filter.order === "asc" }).order("id", { ascending: true })
 
   // Fetch semua baris dalam batch 1000 (Supabase default cap)
   const BATCH = 1000
@@ -432,7 +434,7 @@ export async function bulkUnverifyPenerimaan(ids: string[]): Promise<ActionResul
 
 export async function exportPenerimaanDetail(filter: Omit<PenerimaanFilter, "page">) {
   await requireRole(["ADMIN", "OPERATOR", "PIMPINAN"])
-  const sb = await createClient()
+  const sb = await createAdminClient()
 
   let q = sb.from("penerimaan").select(`
     nomor_bukti, tanggal_terima, tanggal_setor, jumlah, nomor_referensi, uraian, status, verified_at, voided_at,
@@ -451,12 +453,14 @@ export async function exportPenerimaanDetail(filter: Omit<PenerimaanFilter, "pag
   q = applyDateFilterPenerimaan(q, filter as PenerimaanFilter)
   if (filter.jenis_ids?.length) q = q.in("jenis_pendapatan_id", filter.jenis_ids)
   else if (filter.jenis_id) q = q.eq("jenis_pendapatan_id", filter.jenis_id)
+  if (filter.sub_ids?.length) q = q.in("sub_pendapatan_id", filter.sub_ids)
+  else if (filter.sub_id) q = q.eq("sub_pendapatan_id", filter.sub_id)
   if (filter.unit_id)     q = q.eq("unit_kerja_id", filter.unit_id)
   if (filter.rekening_id) q = q.eq("rekening_bank_id", filter.rekening_id)
   if (filter.q)           q = q.ilike("nomor_bukti", `%${filter.q}%`)
 
   const sortCol = filter.sort ?? "tanggal_terima"
-  q = q.order(sortCol, { ascending: filter.order === "asc" })
+  q = q.order(sortCol, { ascending: filter.order === "asc" }).order("id", { ascending: true })
 
   const BATCH = 1000
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -533,6 +537,90 @@ export async function exportPenerimaanDetail(filter: Omit<PenerimaanFilter, "pag
   return { ok: true as const, rows }
 }
 
+export type PenerimaanSummary = {
+  totalNominal: number
+  totalCount: number
+  verifiedNominal: number
+  verifiedCount: number
+  draftNominal: number
+  draftCount: number
+  voidNominal: number
+  voidCount: number
+}
 
+export async function getPenerimaanSummary(filter: PenerimaanFilter = {}): Promise<PenerimaanSummary> {
+  const profile = await getCurrentProfile()
+  if (!profile) {
+    return {
+      totalNominal: 0,
+      totalCount: 0,
+      verifiedNominal: 0,
+      verifiedCount: 0,
+      draftNominal: 0,
+      draftCount: 0,
+      voidNominal: 0,
+      voidCount: 0,
+    }
+  }
 
+  const sb = await createAdminClient()
+  let q = sb.from("penerimaan").select("jumlah, status")
+
+  q = applyDateFilterPenerimaan(q, filter)
+  if (filter.jenis_ids?.length) q = q.in("jenis_pendapatan_id", filter.jenis_ids)
+  else if (filter.jenis_id) q = q.eq("jenis_pendapatan_id", filter.jenis_id)
+  if (filter.sub_ids?.length) q = q.in("sub_pendapatan_id", filter.sub_ids)
+  else if (filter.sub_id) q = q.eq("sub_pendapatan_id", filter.sub_id)
+  if (filter.unit_id) q = q.eq("unit_kerja_id", filter.unit_id)
+  if (filter.rekening_id) q = q.eq("rekening_bank_id", filter.rekening_id)
+  if (filter.q) q = q.ilike("nomor_bukti", `%${filter.q}%`)
+
+  q = q.order("id", { ascending: true })
+
+  const BATCH = 1000
+  let offset = 0
+  let totalNominal = 0
+  let totalCount = 0
+  let verifiedNominal = 0
+  let verifiedCount = 0
+  let draftNominal = 0
+  let draftCount = 0
+  let voidNominal = 0
+  let voidCount = 0
+
+  while (true) {
+    const { data: batch, error } = await q.range(offset, offset + BATCH - 1)
+    if (error || !batch || batch.length === 0) break
+
+    for (const row of batch) {
+      const val = Number(row.jumlah) || 0
+      totalNominal += val
+      totalCount += 1
+      if (row.status === "verified") {
+        verifiedNominal += val
+        verifiedCount += 1
+      } else if (row.status === "draft") {
+        draftNominal += val
+        draftCount += 1
+      } else if (row.status === "void") {
+        voidNominal += val
+        voidCount += 1
+      }
+    }
+
+    if (batch.length < BATCH) break
+    offset += BATCH
+  }
+
+  return {
+    totalNominal,
+    totalCount,
+    verifiedNominal,
+    verifiedCount,
+    draftNominal,
+    draftCount,
+    voidNominal,
+    voidCount,
+  }
+}
 

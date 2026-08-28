@@ -2,11 +2,12 @@ import { Suspense } from "react"
 import Link from "next/link"
 import { getCurrentProfile } from "@/lib/session"
 import { redirect } from "next/navigation"
-import { listPenerimaan, countDraft, countDraftAndVerified } from "@/app/actions/penerimaan"
+import { listPenerimaan, countDraft, countDraftAndVerified, getPenerimaanSummary } from "@/app/actions/penerimaan"
 import { listJenis, listRekening, listSub } from "@/app/actions/master"
 import { PageHeader } from "@/components/page-header"
 import { Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { PenerimaanCards } from "./_components/penerimaan-cards"
 import { PenerimaanTable } from "./_components/penerimaan-table"
 import { PenerimaanFilters } from "./_components/penerimaan-filters"
 import { PenerimaanPagination } from "./_components/penerimaan-pagination"
@@ -49,7 +50,7 @@ export default async function PenerimaanPage({
   const isOperator = profile.role.kode === "OPERATOR"
   const isAdmin = profile.role.kode === "ADMIN"
 
-  const [{ data, count }, jenisList, subList, rekeningList, totalDraft, totalDeletable] = await Promise.all([
+  const [{ data, count }, summary, jenisList, subList, rekeningList, totalDraft, totalDeletable] = await Promise.all([
     listPenerimaan({
       statuses: statuses.length ? statuses : undefined,
       jenis_ids: jenisIds.length ? jenisIds : undefined,
@@ -62,6 +63,14 @@ export default async function PenerimaanPage({
       limit: pageSize,
       sort,
       order,
+    }),
+    getPenerimaanSummary({
+      jenis_ids: jenisIds.length ? jenisIds : undefined,
+      sub_ids: subIds.length ? subIds : undefined,
+      rekening_id: rekeningIds.length === 1 ? rekeningIds[0] : undefined,
+      tahun,
+      bulan,
+      q,
     }),
     listJenis(),
     listSub(),
@@ -88,6 +97,10 @@ export default async function PenerimaanPage({
           ) : undefined
         }
       />
+
+      <Suspense>
+        <PenerimaanCards summary={summary} activeStatus={params.status} />
+      </Suspense>
 
       <Suspense>
         <PenerimaanFilters jenisOptions={jenisOptions} subOptions={subOptions} rekeningOptions={rekeningOptions} />
@@ -120,3 +133,4 @@ export default async function PenerimaanPage({
     </div>
   )
 }
+

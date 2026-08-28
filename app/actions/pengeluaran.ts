@@ -1,7 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { createClient } from "@/lib/supabase/server"
+import { createClient, createAdminClient } from "@/lib/supabase/server"
 import { requireRole, getCurrentProfile } from "@/lib/session"
 import { invalidateDashboardCache, invalidateLaporanCache } from "@/lib/cache"
 
@@ -388,7 +388,7 @@ export async function deleteAllPengeluaran(): Promise<ActionResult<{ berhasil: n
 
 export async function exportPengeluaran(filter: Omit<PengeluaranFilter, "page">) {
   await requireRole(["ADMIN", "OPERATOR", "PIMPINAN"])
-  const sb = await createClient()
+  const sb = await createAdminClient()
 
   let q = sb.from("pengeluaran").select(`
     tanggal, jumlah, uraian, nomor_bukti,
@@ -405,7 +405,7 @@ export async function exportPengeluaran(filter: Omit<PengeluaranFilter, "page">)
   if (filter.q)           q = q.ilike("nomor_bukti", `%${filter.q}%`)
 
   const sortCol = filter.sort ?? "tanggal"
-  q = q.order(sortCol, { ascending: filter.order === "asc" })
+  q = q.order(sortCol, { ascending: filter.order === "asc" }).order("id", { ascending: true })
 
   const BATCH = 1000
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -445,7 +445,7 @@ export async function exportPengeluaran(filter: Omit<PengeluaranFilter, "page">)
 
 export async function exportPengeluaranDetail(filter: Omit<PengeluaranFilter, "page">) {
   await requireRole(["ADMIN", "OPERATOR", "PIMPINAN"])
-  const sb = await createClient()
+  const sb = await createAdminClient()
 
   let q = sb.from("pengeluaran").select(`
     nomor_bukti, tanggal, jumlah, uraian, status, verified_at, voided_at,
@@ -465,7 +465,7 @@ export async function exportPengeluaranDetail(filter: Omit<PengeluaranFilter, "p
   if (filter.q)           q = q.ilike("nomor_bukti", `%${filter.q}%`)
 
   const sortCol = filter.sort ?? "tanggal"
-  q = q.order(sortCol, { ascending: filter.order === "asc" })
+  q = q.order(sortCol, { ascending: filter.order === "asc" }).order("id", { ascending: true })
 
   const BATCH = 1000
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -535,4 +535,88 @@ export async function exportPengeluaranDetail(filter: Omit<PengeluaranFilter, "p
 
   return { ok: true as const, rows }
 }
+
+export type PengeluaranSummary = {
+  totalNominal: number
+  totalCount: number
+  verifiedNominal: number
+  verifiedCount: number
+  draftNominal: number
+  draftCount: number
+  voidNominal: number
+  voidCount: number
+}
+
+export async function getPengeluaranSummary(filter: PengeluaranFilter = {}): Promise<PengeluaranSummary> {
+  const profile = await getCurrentProfile()
+  if (!profile) {
+    return {
+      totalNominal: 0,
+      totalCount: 0,
+      verifiedNominal: 0,
+      verifiedCount: 0,
+      draftNominal: 0,
+      draftCount: 0,
+      voidNominal: 0,
+      voidCount: 0,
+    }
+  }
+
+  const sb = await createAdminClient()
+  let q = sb.from("pengeluaran").select("jumlah, status")
+
+  q = applyDateFilter(q, filter)
+  if (filter.unit_id) q = q.eq("unit_kerja_id", filter.unit_id)
+  if (filter.rekening_id) q = q.eq("rekening_bank_id", filter.rekening_id)
+  if (filter.q) q = q.ilike("nomor_bukti", `%${filter.q}%`)
+
+  q = q.order("id", { ascending: true })
+
+  const BATCH = 1000
+  let offset = 0
+  let totalNominal = 0
+  let totalCount = 0
+  let verifiedNominal = 0
+  let verifiedCount = 0
+  let draftNominal = 0
+  let draftCount = 0
+  let voidNominal = 0
+  let voidCount = 0
+
+  while (true) {
+    const { data: batch, error } = await q.range(offset, offset + BATCH - 1)
+    if (error || !batch || batch.length === 0) break
+
+    for (const row of batch) {
+      const val = Number(row.jumlah) || 0
+      totalNominal += val
+      totalCount += 1
+      if (row.status === "verified") {
+        verifiedNominal += val
+        verifiedCount += 1
+      } else if (row.status === "draft") {
+        draftNominal += val
+        draftCount += 1
+      } else if (row.status === "void") {
+        voidNominal += val
+        voidCount += 1
+      }
+    }
+
+    if (batch.length < BATCH) break
+    offset += BATCH
+  }
+
+  return {
+    totalNominal,
+    totalCount,
+    verifiedNominal,
+    verifiedCount,
+    draftNominal,
+    draftCount,
+    voidNominal,
+    voidCount,
+  }
+}
+
 

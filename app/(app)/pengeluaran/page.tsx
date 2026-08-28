@@ -2,10 +2,11 @@ import { Suspense } from "react"
 import Link from "next/link"
 import { getCurrentProfile } from "@/lib/session"
 import { redirect } from "next/navigation"
-import { listPengeluaran } from "@/app/actions/pengeluaran"
+import { listPengeluaran, getPengeluaranSummary } from "@/app/actions/pengeluaran"
 import { PageHeader } from "@/components/page-header"
 import { Plus, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { PengeluaranCards } from "./_components/pengeluaran-cards"
 import { PengeluaranTable } from "./_components/pengeluaran-table"
 import { PengeluaranFilters } from "./_components/pengeluaran-filters"
 import { PengeluaranPagination } from "./_components/pengeluaran-pagination"
@@ -45,7 +46,7 @@ export default async function PengeluaranPage({
 
   const sb = await createClient()
 
-  const [{ data, count }, { count: totalDraft }, { count: totalDeletable }] = await Promise.all([
+  const [{ data, count }, summary, { count: totalDraft }, { count: totalDeletable }] = await Promise.all([
     listPengeluaran({
       statuses: statuses.length ? statuses : undefined,
       tahun,
@@ -55,6 +56,11 @@ export default async function PengeluaranPage({
       limit: pageSize,
       sort,
       order,
+    }),
+    getPengeluaranSummary({
+      tahun,
+      bulan,
+      q,
     }),
     isAdmin ? sb.from("pengeluaran").select("id", { count: "exact", head: true }).eq("status", "draft") : Promise.resolve({ count: 0 }),
     isAdmin ? sb.from("pengeluaran").select("id", { count: "exact", head: true }).in("status", ["draft", "verified"]) : Promise.resolve({ count: 0 }),
@@ -80,6 +86,10 @@ export default async function PengeluaranPage({
           ) : undefined
         }
       />
+
+      <Suspense>
+        <PengeluaranCards summary={summary} activeStatus={params.status} />
+      </Suspense>
 
       <Suspense>
         <PengeluaranFilters />
@@ -108,3 +118,4 @@ export default async function PengeluaranPage({
     </div>
   )
 }
+
