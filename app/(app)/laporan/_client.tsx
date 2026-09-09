@@ -15,6 +15,7 @@ import { rekapHarian, rekapBulanan, rekapPerRekening, rekapBulananFull, rekapRek
 import { listDokumenRekeningKoran, uploadDokumenRekeningKoran, getDokumenDownloadUrl, deleteDokumenRekeningKoran, type DokumenRekeningKoran } from "@/app/actions/dokumen-rekening-koran"
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious, PaginationEllipsis } from "@/components/ui/pagination"
+import { toast } from "sonner"
 
 const HARIAN_PAGE_SIZE = 20
 
@@ -51,7 +52,19 @@ function formatBytes(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-function DokumenUploadSection({ rekeningId, tahun, isAdmin }: { rekeningId: string; tahun: number; isAdmin?: boolean }) {
+function DokumenUploadSection({
+  rekeningId,
+  tahun,
+  isAdmin,
+  koranData,
+  onDocsChange,
+}: {
+  rekeningId: string
+  tahun: number
+  isAdmin?: boolean
+  koranData?: RekeningKoranResult | null
+  onDocsChange?: (docs: DokumenRekeningKoran[]) => void
+}) {
   const [panelOpen, setPanelOpen] = useState(false)
   const [docs, setDocs] = useState<DokumenRekeningKoran[]>([])
   const [loading, setLoading] = useState(false)
@@ -62,6 +75,10 @@ function DokumenUploadSection({ rekeningId, tahun, isAdmin }: { rekeningId: stri
   const [nama, setNama] = useState("")
   const [file, setFile] = useState<File | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  const [saldoMasuk, setSaldoMasuk] = useState("")
+  const [saldoKeluar, setSaldoKeluar] = useState("")
+  const [saldoAkhir, setSaldoAkhir] = useState("")
 
   // Viewer state
   const [viewerOpen, setViewerOpen] = useState(false)
@@ -75,8 +92,9 @@ function DokumenUploadSection({ rekeningId, tahun, isAdmin }: { rekeningId: stri
     setLoading(true)
     const data = await listDokumenRekeningKoran(rekeningId, tahun)
     setDocs(data)
+    if (onDocsChange) onDocsChange(data)
     setLoading(false)
-  }, [rekeningId, tahun])
+  }, [rekeningId, tahun, onDocsChange])
 
   useEffect(() => { reload() }, [reload])
 
@@ -85,27 +103,49 @@ function DokumenUploadSection({ rekeningId, tahun, isAdmin }: { rekeningId: stri
     if (f && !nama) setNama(f.name.replace(/\.[^.]+$/, ""))
   }
 
+  function handleFillFromSystem() {
+    const b = koranData?.perBulan.find((p) => p.bulan === bulan)
+    if (b) {
+      setSaldoMasuk(b.penerimaan > 0 ? String(b.penerimaan) : "0")
+      setSaldoKeluar(b.pengeluaran > 0 ? String(b.pengeluaran) : "0")
+      setSaldoAkhir(String(b.saldo))
+    }
+  }
+
   async function handleUpload(e: React.FormEvent) {
     e.preventDefault()
-    if (!file || !rekeningId) return
+    if (!file) {
+      toast.error("Silakan pilih file PDF/Gambar rekening koran terlebih dahulu.")
+      fileRef.current?.click()
+      return
+    }
+    if (!rekeningId) {
+      toast.error("Silakan pilih rekening bank terlebih dahulu.")
+      return
+    }
     setUploading(true)
     const fd = new FormData()
     fd.append("file", file)
     fd.append("rekening_bank_id", rekeningId)
     fd.append("tahun", String(tahun))
     fd.append("bulan", String(bulan))
-    fd.append("nama", nama || file.name)
+    fd.append("nama", nama || `Rekening Koran ${BULAN_OPT[bulan - 1]} ${tahun}`)
+    if (saldoMasuk !== "") fd.append("saldo_masuk_bank", saldoMasuk)
+    if (saldoKeluar !== "") fd.append("saldo_keluar_bank", saldoKeluar)
+    if (saldoAkhir !== "") fd.append("saldo_akhir_bank", saldoAkhir)
+
     const result = await uploadDokumenRekeningKoran(fd)
     setUploading(false)
-    if (!result.ok) { alert(result.pesan); return }
-    setFile(null); setNama("")
+    if (!result.ok) { toast.error(result.pesan); return }
+    toast.success("Dokumen rekening koran berhasil disimpan.")
+    setFile(null); setNama(""); setSaldoMasuk(""); setSaldoKeluar(""); setSaldoAkhir("")
     if (fileRef.current) fileRef.current.value = ""
     reload()
   }
 
   async function handleDownload(id: string) {
     const result = await getDokumenDownloadUrl(id)
-    if (!result.ok) { alert(result.pesan); return }
+    if (!result.ok) { toast.error(result.pesan); return }
     window.open(result.data.url, "_blank")
   }
 
@@ -113,7 +153,7 @@ function DokumenUploadSection({ rekeningId, tahun, isAdmin }: { rekeningId: stri
     setViewerLoading(true)
     const result = await getDokumenDownloadUrl(doc.id)
     setViewerLoading(false)
-    if (!result.ok) { alert(result.pesan); return }
+    if (!result.ok) { toast.error(result.pesan); return }
     const isPdf = doc.file_path.endsWith(".pdf")
     setViewerType(isPdf ? "pdf" : "image")
     setViewerUrl(result.data.url)
@@ -126,7 +166,8 @@ function DokumenUploadSection({ rekeningId, tahun, isAdmin }: { rekeningId: stri
     setDeletingId(id)
     const result = await deleteDokumenRekeningKoran(id)
     setDeletingId(null)
-    if (!result.ok) { alert(result.pesan); return }
+    if (!result.ok) { toast.error(result.pesan); return }
+    toast.success("Dokumen berhasil dihapus.")
     reload()
   }
 
@@ -190,33 +231,31 @@ function DokumenUploadSection({ rekeningId, tahun, isAdmin }: { rekeningId: stri
           </div>
         </button>
 
-
         {panelOpen && (
-        <div className="border-t border-border p-4 flex flex-col gap-3">
+        <div className="border-t border-border p-4 flex flex-col gap-4">
 
         {/* Form Upload */}
-
         {isAdmin && (
-          <form onSubmit={handleUpload} className="rounded-xl border border-dashed border-border p-4 flex flex-col gap-3">
+          <form onSubmit={handleUpload} className="rounded-xl border border-dashed border-border p-4 flex flex-col gap-3.5 bg-card/40">
             <div
-              className={`flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed transition-colors cursor-pointer py-6 ${
-                dragOver ? "border-primary bg-primary/5" : "border-border/50 hover:border-border"
+              className={`flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed transition-colors cursor-pointer py-5 ${
+                dragOver ? "border-primary bg-primary/5" : file ? "border-emerald-500/50 bg-emerald-500/5" : "border-border/60 hover:border-primary/50"
               }`}
               onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
               onDragLeave={() => setDragOver(false)}
               onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFile(e.dataTransfer.files[0] ?? null) }}
               onClick={() => fileRef.current?.click()}
             >
-              <Upload className="h-6 w-6 text-muted-foreground" />
+              <Upload className={`h-5 w-5 ${file ? "text-emerald-500" : "text-muted-foreground"}`} />
               {file ? (
                 <>
-                  <p className="text-sm font-medium text-foreground">{file.name}</p>
-                  <p className="text-xs text-muted-foreground">{formatBytes(file.size)}</p>
+                  <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">{file.name}</p>
+                  <p className="text-xs text-muted-foreground">{formatBytes(file.size)} (Klik untuk ganti file)</p>
                 </>
               ) : (
                 <>
-                  <p className="text-sm text-muted-foreground">Klik atau drag & drop file</p>
-                  <p className="text-xs text-muted-foreground/60">PDF, JPG, PNG — maks 30 MB</p>
+                  <p className="text-sm font-medium text-foreground">Klik di sini untuk memilih file rekening koran</p>
+                  <p className="text-xs text-muted-foreground/70">Format PDF, JPG, atau PNG (Maksimal 30 MB)</p>
                 </>
               )}
               <input
@@ -225,9 +264,9 @@ function DokumenUploadSection({ rekeningId, tahun, isAdmin }: { rekeningId: stri
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="flex flex-col gap-1">
-                <label className="text-xs text-muted-foreground">Bulan</label>
+                <label className="text-xs text-muted-foreground font-medium">Bulan Dokumen</label>
                 <Select value={String(bulan)} onValueChange={(v) => v && setBulan(parseInt(v))}>
                   <SelectTrigger className="h-9 w-full bg-muted/50 border-border text-foreground text-sm px-3">
                     <span className="flex flex-1 text-left text-sm truncate">{BULAN_OPT[bulan - 1]}</span>
@@ -240,19 +279,65 @@ function DokumenUploadSection({ rekeningId, tahun, isAdmin }: { rekeningId: stri
                 </Select>
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-xs text-muted-foreground">Nama Dokumen</label>
+                <label className="text-xs text-muted-foreground font-medium">Nama Dokumen (Opsional)</label>
                 <Input
                   value={nama}
                   onChange={(e) => setNama(e.target.value)}
-                  placeholder="Nama file/dokumen"
-                  className="bg-muted/50 border-border text-foreground text-sm"
+                  placeholder={`Rekening Koran ${BULAN_OPT[bulan - 1]} ${tahun}`}
+                  className="bg-muted/50 border-border text-foreground text-sm h-9"
                 />
               </div>
             </div>
 
-            <Button type="submit" size="sm" disabled={!file || uploading} className="self-end gap-1.5">
+            {/* Input Nilai Pembanding Bank (Opsional) */}
+            <div className="flex flex-col gap-2 rounded-lg border border-border/50 bg-muted/20 p-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-foreground/80">Angka Rekening Koran Bank (Opsional)</span>
+                <button
+                  type="button"
+                  onClick={handleFillFromSystem}
+                  className="text-xs font-medium text-primary hover:underline"
+                >
+                  Ambil dari Angka Sistem
+                </button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] text-muted-foreground">Mutasi Masuk (Kredit Bank)</label>
+                  <Input
+                    type="number"
+                    value={saldoMasuk}
+                    onChange={(e) => setSaldoMasuk(e.target.value)}
+                    placeholder="cth. 150000000"
+                    className="bg-muted/50 border-border text-foreground text-xs h-8"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] text-muted-foreground">Mutasi Keluar (Debet Bank)</label>
+                  <Input
+                    type="number"
+                    value={saldoKeluar}
+                    onChange={(e) => setSaldoKeluar(e.target.value)}
+                    placeholder="cth. 25000000"
+                    className="bg-muted/50 border-border text-foreground text-xs h-8"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] text-muted-foreground font-medium">Saldo Akhir Bank</label>
+                  <Input
+                    type="number"
+                    value={saldoAkhir}
+                    onChange={(e) => setSaldoAkhir(e.target.value)}
+                    placeholder="cth. 125000000"
+                    className="bg-muted/50 border-border text-foreground text-xs h-8"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <Button type="submit" size="sm" disabled={uploading} className="self-end gap-1.5 cursor-pointer">
               <Upload className="h-3.5 w-3.5" />
-              {uploading ? "Mengunggah..." : "Upload"}
+              {uploading ? "Mengunggah..." : "Upload & Simpan"}
             </Button>
           </form>
         )}
@@ -269,6 +354,7 @@ function DokumenUploadSection({ rekeningId, tahun, isAdmin }: { rekeningId: stri
                 <TableRow className="border-border hover:bg-transparent">
                   <TableHead className="text-xs text-muted-foreground">Bulan</TableHead>
                   <TableHead className="text-xs text-muted-foreground">Nama Dokumen</TableHead>
+                  <TableHead className="text-xs text-muted-foreground text-right">Saldo Akhir Bank</TableHead>
                   <TableHead className="text-xs text-muted-foreground">Ukuran</TableHead>
                   <TableHead className="text-xs text-muted-foreground">Diunggah</TableHead>
                   <TableHead />
@@ -279,6 +365,9 @@ function DokumenUploadSection({ rekeningId, tahun, isAdmin }: { rekeningId: stri
                   <TableRow key={doc.id} className="border-border/50">
                     <TableCell className="text-sm font-medium text-foreground/80 py-2.5">{doc.nama_bulan}</TableCell>
                     <TableCell className="text-sm text-foreground/70 py-2.5">{doc.nama}</TableCell>
+                    <TableCell className="text-xs font-medium text-foreground/90 py-2.5 text-right">
+                      {doc.saldo_akhir_bank != null ? rupiah(doc.saldo_akhir_bank) : <span className="text-muted-foreground/40">—</span>}
+                    </TableCell>
                     <TableCell className="text-xs text-muted-foreground py-2.5">{formatBytes(doc.file_size)}</TableCell>
                     <TableCell className="text-xs text-muted-foreground py-2.5">{doc.uploader_nama ?? "—"}</TableCell>
                     <TableCell className="py-2.5">
@@ -394,6 +483,7 @@ export function LaporanClient({ initialHarian, initialBulanan, initialRekening, 
   const [koranRekeningId, setKoranRekeningId] = useState(initialRekeningKoranId)
   const [koranTahun, setKoranTahun] = useState(initialRekeningKoranTahun)
   const [koranData, setKoranData] = useState<RekeningKoranResult | null>(initialRekeningKoran)
+  const [koranDocs, setKoranDocs] = useState<DokumenRekeningKoran[]>([])
   const [tabelKoranTerlihat, setTabelKoranTerlihat] = useState(false)
 
   const koranTahunList = Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i)
@@ -827,6 +917,7 @@ export function LaporanClient({ initialHarian, initialBulanan, initialRekening, 
                         <TableHead className="text-muted-foreground text-xs text-right">Penerimaan (Debit)</TableHead>
                         <TableHead className="text-muted-foreground text-xs text-right">Pengeluaran (Kredit)</TableHead>
                         <TableHead className="text-muted-foreground text-xs text-right">Saldo Akhir</TableHead>
+                        <TableHead className="text-muted-foreground text-xs text-center">Status Rekonsiliasi</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -835,24 +926,59 @@ export function LaporanClient({ initialHarian, initialBulanan, initialRekening, 
                         <TableCell className="text-xs text-foreground/30 py-2.5 text-right">—</TableCell>
                         <TableCell className="text-xs text-foreground/30 py-2.5 text-right">—</TableCell>
                         <TableCell className="text-xs font-semibold text-foreground py-2.5 text-right">{rupiah(koranData.saldoAwal)}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground/30 py-2.5 text-center">—</TableCell>
                       </TableRow>
-                      {koranData.perBulan.map((b) => (
-                        <TableRow key={b.bulan} className="border-border/50">
-                          <TableCell className="text-sm text-foreground/70 py-2.5">{b.namaBulan}</TableCell>
-                          <TableCell className={`text-sm py-2.5 text-right ${b.penerimaan > 0 ? "text-emerald-500" : "text-foreground/30"}`}>
-                            {b.penerimaan > 0 ? rupiah(b.penerimaan) : "—"}
-                          </TableCell>
-                          <TableCell className={`text-sm py-2.5 text-right ${b.pengeluaran > 0 ? "text-rose-500" : "text-foreground/30"}`}>
-                            {b.pengeluaran > 0 ? rupiah(b.pengeluaran) : "—"}
-                          </TableCell>
-                          <TableCell className="text-sm font-medium text-foreground/80 py-2.5 text-right">{rupiah(b.saldo)}</TableCell>
-                        </TableRow>
-                      ))}
+                      {koranData.perBulan.map((b) => {
+                        const doc = koranDocs.find((d) => d.bulan === b.bulan)
+                        let matchBadge = <span className="text-xs text-muted-foreground/30">—</span>
+                        if (doc) {
+                          if (doc.saldo_akhir_bank != null) {
+                            const diff = doc.saldo_akhir_bank - b.saldo
+                            if (diff === 0) {
+                              matchBadge = (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                                  Klop ✅
+                                </span>
+                              )
+                            } else {
+                              matchBadge = (
+                                <span
+                                  className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400"
+                                  title={`Bank: ${rupiah(doc.saldo_akhir_bank)} | Sistem: ${rupiah(b.saldo)}`}
+                                >
+                                  Selisih {rupiah(Math.abs(diff))} ⚠️
+                                </span>
+                              )
+                            }
+                          } else {
+                            matchBadge = (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                                Dokumen 📄
+                              </span>
+                            )
+                          }
+                        }
+
+                        return (
+                          <TableRow key={b.bulan} className="border-border/50">
+                            <TableCell className="text-sm text-foreground/70 py-2.5">{b.namaBulan}</TableCell>
+                            <TableCell className={`text-sm py-2.5 text-right ${b.penerimaan > 0 ? "text-emerald-500" : "text-foreground/30"}`}>
+                              {b.penerimaan > 0 ? rupiah(b.penerimaan) : "—"}
+                            </TableCell>
+                            <TableCell className={`text-sm py-2.5 text-right ${b.pengeluaran > 0 ? "text-rose-500" : "text-foreground/30"}`}>
+                              {b.pengeluaran > 0 ? rupiah(b.pengeluaran) : "—"}
+                            </TableCell>
+                            <TableCell className="text-sm font-medium text-foreground/80 py-2.5 text-right">{rupiah(b.saldo)}</TableCell>
+                            <TableCell className="text-center py-2.5">{matchBadge}</TableCell>
+                          </TableRow>
+                        )
+                      })}
                       <TableRow className="border-t-2 border-border bg-muted/30">
                         <TableCell className="text-xs font-semibold text-foreground/70 py-3">SALDO AKHIR</TableCell>
                         <TableCell className="text-sm font-bold text-emerald-500 py-3 text-right">{rupiah(koranData.totalPenerimaan)}</TableCell>
                         <TableCell className="text-sm font-bold text-rose-500 py-3 text-right">{rupiah(koranData.totalPengeluaran)}</TableCell>
                         <TableCell className="text-base font-bold text-foreground py-3 text-right">{rupiah(koranData.saldoAkhir)}</TableCell>
+                        <TableCell className="text-center py-3 text-xs font-medium text-muted-foreground">—</TableCell>
                       </TableRow>
                     </TableBody>
                   </Table>
@@ -864,7 +990,13 @@ export function LaporanClient({ initialHarian, initialBulanan, initialRekening, 
           {/* Divider */}
           {koranRekeningId && koranRekeningId !== "__ALL__" && (
             <div className="border-t border-border/50 pt-4 mt-2">
-              <DokumenUploadSection rekeningId={koranRekeningId} tahun={koranTahun} isAdmin={isAdmin} />
+              <DokumenUploadSection
+                rekeningId={koranRekeningId}
+                tahun={koranTahun}
+                isAdmin={isAdmin}
+                koranData={koranData}
+                onDocsChange={setKoranDocs}
+              />
             </div>
           )}
         </div>

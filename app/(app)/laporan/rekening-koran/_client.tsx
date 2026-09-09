@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useState, useTransition, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { EmptyState } from "@/components/empty-state"
 import { rekapRekeningKoran, type RekeningKoranResult, type BulanPoint } from "@/app/actions/laporan"
+import { listDokumenRekeningKoran, type DokumenRekeningKoran } from "@/app/actions/dokumen-rekening-koran"
 
 const rupiah = (n: number) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n)
@@ -30,8 +31,14 @@ export function LaporanRekeningKoranClient({
   const [data, setData] = useState(initialData)
   const [rekeningId, setRekeningId] = useState(initialRekeningId)
   const [tahun, setTahun] = useState(initialTahun)
+  const [docs, setDocs] = useState<DokumenRekeningKoran[]>([])
 
   const tahunList = Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i)
+
+  useEffect(() => {
+    if (!rekeningId) return
+    listDokumenRekeningKoran(rekeningId, tahun).then(setDocs)
+  }, [rekeningId, tahun])
 
   function navigate(rid: string, thn: number) {
     router.push(`/laporan/rekening-koran?rekening_id=${rid}&tahun=${thn}`)
@@ -149,6 +156,7 @@ export function LaporanRekeningKoranClient({
                 <TableHead className="text-muted-foreground text-xs text-right">Penerimaan (Debit)</TableHead>
                 <TableHead className="text-muted-foreground text-xs text-right">Pengeluaran (Kredit)</TableHead>
                 <TableHead className="text-muted-foreground text-xs text-right">Saldo Akhir</TableHead>
+                <TableHead className="text-muted-foreground text-xs text-center">Status Rekonsiliasi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -162,22 +170,56 @@ export function LaporanRekeningKoranClient({
                 <TableCell className="text-xs font-semibold text-foreground py-2.5 text-right">
                   {rupiah(data!.saldoAwal)}
                 </TableCell>
+                <TableCell className="text-xs text-muted-foreground/30 py-2.5 text-center">—</TableCell>
               </TableRow>
 
-              {data!.perBulan.map((b: BulanPoint) => (
-                <TableRow key={b.bulan} className="border-border/50">
-                  <TableCell className="text-sm text-foreground/70 py-2.5">{b.namaBulan}</TableCell>
-                  <TableCell className={`text-sm py-2.5 text-right ${b.penerimaan > 0 ? "text-emerald-500" : "text-foreground/30"}`}>
-                    {b.penerimaan > 0 ? rupiah(b.penerimaan) : "—"}
-                  </TableCell>
-                  <TableCell className={`text-sm py-2.5 text-right ${b.pengeluaran > 0 ? "text-rose-500" : "text-foreground/30"}`}>
-                    {b.pengeluaran > 0 ? rupiah(b.pengeluaran) : "—"}
-                  </TableCell>
-                  <TableCell className="text-sm font-medium text-foreground/80 py-2.5 text-right">
-                    {rupiah(b.saldo)}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {data!.perBulan.map((b: BulanPoint) => {
+                const doc = docs.find((d) => d.bulan === b.bulan)
+                let matchBadge = <span className="text-xs text-muted-foreground/30">—</span>
+                if (doc) {
+                  if (doc.saldo_akhir_bank != null) {
+                    const diff = doc.saldo_akhir_bank - b.saldo
+                    if (diff === 0) {
+                      matchBadge = (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                          Klop ✅
+                        </span>
+                      )
+                    } else {
+                      matchBadge = (
+                        <span
+                          className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400"
+                          title={`Bank: ${rupiah(doc.saldo_akhir_bank)} | Sistem: ${rupiah(b.saldo)}`}
+                        >
+                          Selisih {rupiah(Math.abs(diff))} ⚠️
+                        </span>
+                      )
+                    }
+                  } else {
+                    matchBadge = (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                        Dokumen 📄
+                      </span>
+                    )
+                  }
+                }
+
+                return (
+                  <TableRow key={b.bulan} className="border-border/50">
+                    <TableCell className="text-sm text-foreground/70 py-2.5">{b.namaBulan}</TableCell>
+                    <TableCell className={`text-sm py-2.5 text-right ${b.penerimaan > 0 ? "text-emerald-500" : "text-foreground/30"}`}>
+                      {b.penerimaan > 0 ? rupiah(b.penerimaan) : "—"}
+                    </TableCell>
+                    <TableCell className={`text-sm py-2.5 text-right ${b.pengeluaran > 0 ? "text-rose-500" : "text-foreground/30"}`}>
+                      {b.pengeluaran > 0 ? rupiah(b.pengeluaran) : "—"}
+                    </TableCell>
+                    <TableCell className="text-sm font-medium text-foreground/80 py-2.5 text-right">
+                      {rupiah(b.saldo)}
+                    </TableCell>
+                    <TableCell className="text-center py-2.5">{matchBadge}</TableCell>
+                  </TableRow>
+                )
+              })}
 
               {/* Baris total */}
               <TableRow className="border-t-2 border-border bg-muted/30">
@@ -191,6 +233,7 @@ export function LaporanRekeningKoranClient({
                 <TableCell className="text-base font-bold text-foreground py-3 text-right">
                   {rupiah(data!.saldoAkhir)}
                 </TableCell>
+                <TableCell className="text-center py-3 text-xs font-medium text-muted-foreground">—</TableCell>
               </TableRow>
             </TableBody>
           </Table>
@@ -199,3 +242,4 @@ export function LaporanRekeningKoranClient({
     </div>
   )
 }
+

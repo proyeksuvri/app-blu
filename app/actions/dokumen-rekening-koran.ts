@@ -52,6 +52,9 @@ export type DokumenRekeningKoran = {
   uploaded_by: string
   uploader_nama: string | null
   created_at: string
+  saldo_masuk_bank?: number | null
+  saldo_keluar_bank?: number | null
+  saldo_akhir_bank?: number | null
 }
 
 export async function listDokumenRekeningKoran(
@@ -61,7 +64,7 @@ export async function listDokumenRekeningKoran(
   const sb = await createClient()
   const { data, error } = await sb
     .from("dokumen_rekening_koran")
-    .select("id, rekening_bank_id, tahun, bulan, nama, file_path, file_size, uploaded_by, created_at")
+    .select("*")
     .eq("rekening_bank_id", rekeningId)
     .eq("tahun", tahun)
     .order("bulan", { ascending: true })
@@ -76,11 +79,35 @@ export async function listDokumenRekeningKoran(
   const nameMap = new Map<string, string>()
   for (const p of profiles ?? []) nameMap.set(p.id, p.nama_lengkap)
 
-  return data.map((row) => ({
-    ...row,
-    nama_bulan: BULAN_NAMA[(row.bulan as number) - 1] ?? "",
-    uploader_nama: nameMap.get(row.uploaded_by) ?? null,
-  }))
+  return data.map((row) => {
+    let cleanNama = row.nama || ""
+    let masuk: number | null = row.saldo_masuk_bank != null ? Number(row.saldo_masuk_bank) : null
+    let keluar: number | null = row.saldo_keluar_bank != null ? Number(row.saldo_keluar_bank) : null
+    let akhir: number | null = row.saldo_akhir_bank != null ? Number(row.saldo_akhir_bank) : null
+
+    if (cleanNama.includes("__META__")) {
+      const parts = cleanNama.split("__META__")
+      cleanNama = parts[0]
+      try {
+        const meta = JSON.parse(parts[1])
+        if (masuk == null && meta.in != null) masuk = Number(meta.in)
+        if (keluar == null && meta.out != null) keluar = Number(meta.out)
+        if (akhir == null && meta.end != null) akhir = Number(meta.end)
+      } catch {
+        // ignore parse error
+      }
+    }
+
+    return {
+      ...row,
+      nama: cleanNama,
+      nama_bulan: BULAN_NAMA[(row.bulan as number) - 1] ?? "",
+      uploader_nama: nameMap.get(row.uploaded_by) ?? null,
+      saldo_masuk_bank: masuk,
+      saldo_keluar_bank: keluar,
+      saldo_akhir_bank: akhir,
+    }
+  })
 }
 
 export async function uploadDokumenRekeningKoran(
@@ -92,13 +119,21 @@ export async function uploadDokumenRekeningKoran(
   const rekeningId = (formData.get("rekening_bank_id") as string | null)?.trim()
   const tahun = parseInt((formData.get("tahun") as string | null) ?? "0")
   const bulan = parseInt((formData.get("bulan") as string | null) ?? "0")
-  const nama = (formData.get("nama") as string | null)?.trim()
+  const rawNama = (formData.get("nama") as string | null)?.trim()
+
+  const masukStr = formData.get("saldo_masuk_bank") as string | null
+  const keluarStr = formData.get("saldo_keluar_bank") as string | null
+  const akhirStr = formData.get("saldo_akhir_bank") as string | null
+
+  const saldoMasuk = masukStr !== null && masukStr !== "" ? parseFloat(masukStr) : null
+  const saldoKeluar = keluarStr !== null && keluarStr !== "" ? parseFloat(keluarStr) : null
+  const saldoAkhir = akhirStr !== null && akhirStr !== "" ? parseFloat(akhirStr) : null
 
   if (!file || file.size === 0) return { ok: false, pesan: "File wajib dipilih." }
   if (!rekeningId) return { ok: false, pesan: "Rekening wajib dipilih." }
   if (!tahun || tahun < 2000) return { ok: false, pesan: "Tahun tidak valid." }
   if (!bulan || bulan < 1 || bulan > 12) return { ok: false, pesan: "Bulan tidak valid." }
-  if (!nama) return { ok: false, pesan: "Nama dokumen wajib diisi." }
+  if (!rawNama) return { ok: false, pesan: "Nama dokumen wajib diisi." }
 
   const allowed = ["application/pdf", "image/jpeg", "image/png"]
   if (!allowed.includes(file.type)) return { ok: false, pesan: "Hanya PDF, JPG, atau PNG yang diizinkan." }
@@ -118,6 +153,13 @@ export async function uploadDokumenRekeningKoran(
 
   if (uploadError) return { ok: false, pesan: `Gagal unggah: ${uploadError.message}` }
 
+  // Buat metadata komparasi saldo bank jika diisi
+  let namaToSave = rawNama
+  if (saldoMasuk != null || saldoKeluar != null || saldoAkhir != null) {
+    const meta = { in: saldoMasuk, out: saldoKeluar, end: saldoAkhir }
+    namaToSave = `${rawNama}__META__${JSON.stringify(meta)}`
+  }
+
   const sb = await createClient()
   const { data: inserted, error: dbError } = await sb
     .from("dokumen_rekening_koran")
@@ -125,7 +167,7 @@ export async function uploadDokumenRekeningKoran(
       rekening_bank_id: rekeningId,
       tahun,
       bulan,
-      nama,
+      nama: namaToSave,
       file_path: safeName,
       file_size: file.size,
       uploaded_by: profile.id,

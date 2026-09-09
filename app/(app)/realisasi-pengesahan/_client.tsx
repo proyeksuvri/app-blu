@@ -54,54 +54,87 @@ async function parseXlsxFile(file: File): Promise<ParsedSheetResult> {
     return { headers: [], rows: [] }
   }
 
-  // 1. Cari baris header sebenarnya
+  // 1. Ekstrak judul dari baris 0-4
+  let detectedTitle = ""
+  const titleParts: string[] = []
+  for (let r = 0; r < Math.min(grid.length, 5); r++) {
+    const row = grid[r] || []
+    const filledCells = row.map((c) => String(c ?? "").trim()).filter(Boolean)
+    if (filledCells.length === 1) {
+      const text = filledCells[0]
+      if (
+        !text.toLowerCase().includes("ringkasan") &&
+        !text.toLowerCase().startsWith("sumber:")
+      ) {
+        titleParts.push(text)
+      }
+    }
+  }
+  if (titleParts.length > 0) {
+    detectedTitle = titleParts.join(" - ")
+  }
+
+  // 2. Cari baris header tabel utama yang sebenarnya
   const headerKeywords = [
-    "uraian", "proyeksi", "realisasi", "deviasi", "pagu", "anggaran",
-    "jumlah", "nominal", "keterangan", "nama", "item", "deskripsi", "no", "kode"
+    "uraian", "sumber", "dana", "akun", "proyeksi", "rpd", "realisasi", "deviasi",
+    "pagu", "anggaran", "jumlah", "nominal", "keterangan", "nama", "item", "deskripsi", "no", "kode"
   ]
 
-  let headerRowIndex = -1
-  let detectedTitle = ""
+  let bestHeaderIndex = -1
+  let bestScore = 0
 
-  for (let r = 0; r < Math.min(grid.length, 15); r++) {
+  for (let r = 0; r < Math.min(grid.length, 30); r++) {
     const row = grid[r] || []
     const filledCells = row.map((c) => String(c ?? "").trim()).filter(Boolean)
 
-    // Jika baris awal hanya punya 1 teks panjang, kemungkinan itu judul tabel/banner
-    if (filledCells.length === 1 && !detectedTitle && r < 5) {
-      detectedTitle = filledCells[0]
-    }
-
     if (filledCells.length >= 2) {
-      // Cek apakah ada keyword header yang cocok
-      const hasKeyword = filledCells.some((cell) =>
-        headerKeywords.some((kw) => cell.toLowerCase().includes(kw))
-      )
-      if (hasKeyword || filledCells.length >= 3) {
-        headerRowIndex = r
-        break
+      const firstCell = filledCells[0].toLowerCase()
+      // Abaikan baris ringkasan 2 sel (misal: "STATUS", "RINGKASAN", "RM + BOPTN", "BLU", "TOTAL RPD")
+      if (
+        filledCells.length <= 2 &&
+        (firstCell === "status" ||
+          firstCell === "ringkasan" ||
+          firstCell.includes("rm +") ||
+          firstCell === "blu" ||
+          firstCell === "total rpd")
+      ) {
+        continue
+      }
+
+      let score = 0
+      for (const cell of filledCells) {
+        const lower = cell.toLowerCase()
+        if (headerKeywords.some((kw) => lower.includes(kw))) {
+          score += 2
+        }
+      }
+      score += Math.min(filledCells.length, 8)
+
+      if (score > bestScore && filledCells.length >= 3) {
+        bestScore = score
+        bestHeaderIndex = r
       }
     }
   }
 
-  // Fallback: baris pertama yang punya minimal 2 kolom terisi
-  if (headerRowIndex === -1) {
-    for (let r = 0; r < grid.length; r++) {
+  // Fallback jika tidak ada baris yang memenuhi length >= 3
+  if (bestHeaderIndex === -1) {
+    for (let r = 0; r < Math.min(grid.length, 30); r++) {
       const row = grid[r] || []
-      const filled = row.filter((c) => String(c ?? "").trim() !== "")
-      if (filled.length >= 2) {
-        headerRowIndex = r
+      const filled = row.map((c) => String(c ?? "").trim()).filter(Boolean)
+      if (filled.length >= 2 && filled[0].toLowerCase() !== "status") {
+        bestHeaderIndex = r
         break
       }
     }
   }
 
-  if (headerRowIndex === -1) {
-    headerRowIndex = 0
+  if (bestHeaderIndex === -1) {
+    bestHeaderIndex = 0
   }
 
-  // 2. Ekstrak nama header
-  const rawHeaderRow = (grid[headerRowIndex] || []).map((c) => String(c ?? "").trim())
+  // 3. Ekstrak nama header
+  const rawHeaderRow = (grid[bestHeaderIndex] || []).map((c) => String(c ?? "").trim())
 
   let lastCol = rawHeaderRow.length - 1
   while (lastCol >= 0 && !rawHeaderRow[lastCol]) {
@@ -122,12 +155,17 @@ async function parseXlsxFile(file: File): Promise<ParsedSheetResult> {
     headers.push(name)
   }
 
-  // 3. Ekstrak baris data
+  // 4. Ekstrak baris data
   const dataRows: SheetRow[] = []
-  for (let r = headerRowIndex + 1; r < grid.length; r++) {
+  for (let r = bestHeaderIndex + 1; r < grid.length; r++) {
     const row = grid[r] || []
-    const isAllEmpty = row.every((c) => c === null || c === undefined || String(c).trim() === "")
-    if (isAllEmpty) continue
+    const filled = row.map((c) => String(c ?? "").trim()).filter(Boolean)
+    if (filled.length === 0) continue
+
+    // Abaikan baris catatan di bagian bawah
+    if (filled.length === 1 && filled[0].toLowerCase().startsWith("catatan")) {
+      continue
+    }
 
     const rowObj: SheetRow = {}
     let hasValue = false

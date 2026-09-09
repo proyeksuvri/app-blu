@@ -10,12 +10,12 @@ function cleanKey(k: string): string {
 
 function isNoHeader(h: string): boolean {
   const c = cleanKey(h)
-  return ["no", "nomor", "num", "#", "kode"].includes(c)
+  return ["no", "nomor", "num", "#", "kode", "akun"].includes(c)
 }
 
 function isUraianHeader(h: string): boolean {
   const c = cleanKey(h)
-  return c.includes("uraian") || c.includes("nama") || c.includes("keterangan") || c.includes("deskripsi") || c.includes("akun")
+  return c.includes("uraian") || c.includes("nama") || c.includes("keterangan") || c.includes("deskripsi")
 }
 
 function isPctHeader(h: string): boolean {
@@ -23,36 +23,10 @@ function isPctHeader(h: string): boolean {
   return c.includes("%") || c.includes("pct") || c.includes("persen") || c.includes("persentase")
 }
 
-function isDeviasiHeader(h: string): boolean {
-  const c = cleanKey(h)
-  return c.includes("deviasi") || c.includes("selisih") || c.includes("beda")
-}
-
-function isNumericHeader(h: string): boolean {
-  const c = cleanKey(h)
-  if (isNoHeader(h) || isUraianHeader(h)) return false
-  return (
-    c.includes("proyeksi") ||
-    c.includes("realisasi") ||
-    c.includes("deviasi") ||
-    c.includes("jumlah") ||
-    c.includes("nominal") ||
-    c.includes("anggaran") ||
-    c.includes("pagu") ||
-    c.includes("target") ||
-    c.includes("sisa") ||
-    c.includes("saldo") ||
-    c.includes("kredit") ||
-    c.includes("debet") ||
-    c.includes("nilai") ||
-    c.includes("amount")
-  )
-}
-
 function parseNumeric(val: unknown): { num: number; isDash: boolean } {
   if (val === null || val === undefined) return { num: 0, isDash: true }
   if (typeof val === "number") {
-    if (isNaN(val) || val === 0) return { num: 0, isDash: true }
+    if (isNaN(val)) return { num: 0, isDash: true }
     return { num: val, isDash: false }
   }
 
@@ -69,7 +43,7 @@ function parseNumeric(val: unknown): { num: number; isDash: boolean } {
   }
 
   const n = parseFloat(cleaned)
-  return { num: isNaN(n) ? 0 : n, isDash: isNaN(n) || n === 0 }
+  return { num: isNaN(n) ? 0 : n, isDash: isNaN(n) }
 }
 
 function formatRupiah(num: number): string {
@@ -80,9 +54,9 @@ function formatRupiah(num: number): string {
 }
 
 function formatPercentage(val: unknown): { text: string; num: number; isDash: boolean } {
-  if (val === null || val === undefined) return { text: "-", num: 0, isDash: true }
+  if (val === null || val === undefined) return { text: "", num: 0, isDash: true }
   const s = String(val).trim()
-  if (!s || s === "-" || s === "—" || s === "–" || s === "0" || s === "0%") return { text: "-", num: 0, isDash: true }
+  if (!s || s === "-" || s === "—" || s === "–" || s === "0" || s === "0%") return { text: "", num: 0, isDash: true }
 
   if (typeof val === "string" && s.endsWith("%")) {
     const rawNum = parseNumeric(s.replace("%", "")).num
@@ -90,7 +64,7 @@ function formatPercentage(val: unknown): { text: string; num: number; isDash: bo
   }
 
   const { num, isDash } = parseNumeric(val)
-  if (isDash || num === 0) return { text: "-", num: 0, isDash: true }
+  if (isDash || num === 0) return { text: "", num: 0, isDash: true }
 
   let pctVal = num
   if (Math.abs(num) <= 1.0 && num !== 0) {
@@ -108,201 +82,184 @@ function formatPercentage(val: unknown): { text: string; num: number; isDash: bo
 // ─── Theme Colors ─────────────────────────────────────────────────────────────
 
 const C = {
-  headerBg:   "#0b1e36", // Dark Navy
-  headerText: "#ffffff",
-  borderDark: "#1e3a5f",
-  borderLight:"#e2e8f0",
-  textDark:   "#0b1e36",
-  textMuted:  "#475569",
-  white:      "#ffffff",
-  gold:       "#f59e0b",
-  redText:    "#dc2626", // Red for negative deviasi
-  redBright:  "#ff4d4f", // Bright red on dark total row
-  greenText:  "#16a34a",
-
-  // Category Badges
-  cat1Badge:  "#163252",
-  cat1Bg:     "#f4f8fb",
-
-  cat2Badge:  "#e5a93c",
-  cat2Bg:     "#fdfbf2",
-
-  cat3Badge:  "#65a30d",
-  cat3Bg:     "#f4f9ed",
-
-  subBadge:   "#e8f1f8",
-  subBg:      "#ffffff",
-
-  totalBg:    "#0d2342",
+  navyHeader:     "#10355c", // Dark Navy Header matching reference
+  navyText:       "#ffffff",
+  textDark:       "#0f172a",
+  textMuted:      "#475569",
+  white:          "#ffffff",
+  borderDark:     "#0f2942",
+  borderLight:    "#cbd5e1",
+  borderSubtle:   "#e2e8f0",
+  
+  // Shading colors from reference
+  summaryLabelBg: "#e8f1f8", // Ice Blue for summary labels
+  groupRowBg:     "#f1f5f9", // Soft gray for RM+BOPTN & BLU group totals
+  totalRowBg:     "#dbeafe", // Soft light blue for Grand Total
+  deviasiColBg:   "#e8f5e9", // Soft pastel green for Deviasi & % Deviasi cells
+  
+  redText:        "#dc2626",
+  greenText:      "#15803d",
 }
 
 // ─── Stylesheet ───────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
   page: {
-    paddingHorizontal: 22,
-    paddingTop: 20,
-    paddingBottom: 24,
-    fontSize: 7.5,
+    paddingHorizontal: 28,
+    paddingTop: 24,
+    paddingBottom: 28,
+    fontSize: 8,
     fontFamily: "Geist",
     color: C.textDark,
     backgroundColor: C.white,
   },
 
-  // Kop / Header
-  kopContainer: {
-    marginBottom: 6,
+  // Title Block
+  titleBlock: {
+    marginBottom: 14,
   },
-  orgTitle: {
-    fontSize: 12,
+  mainTitle: {
+    fontSize: 13,
     fontFamily: "Geist",
     fontWeight: 700,
-    color: C.headerBg,
-    textAlign: "center",
-    letterSpacing: 0.4,
-    marginBottom: 2,
-  },
-  orgSub: {
-    fontSize: 7,
-    color: C.textMuted,
-    textAlign: "center",
-    marginBottom: 3,
-  },
-  reportTitle: {
-    fontSize: 10,
-    fontFamily: "Geist",
-    fontWeight: 700,
-    color: C.headerBg,
-    textAlign: "center",
-    marginTop: 2,
-    marginBottom: 4,
-    textTransform: "uppercase",
+    color: C.textDark,
     letterSpacing: 0.3,
+    textTransform: "uppercase",
   },
-  metaRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+  periodTitle: {
+    fontSize: 11,
+    fontFamily: "Geist",
+    fontWeight: 700,
+    color: C.textDark,
     marginTop: 2,
-    marginBottom: 3,
+    letterSpacing: 0.2,
+    textTransform: "uppercase",
   },
-  metaText: {
-    fontSize: 6.5,
+  sourceNote: {
+    fontSize: 7.5,
+    fontFamily: "Geist",
     color: C.textMuted,
-  },
-  divider: {
-    borderBottomWidth: 1.2,
-    borderBottomColor: C.headerBg,
-    marginTop: 1,
-    marginBottom: 6,
+    marginTop: 3,
   },
 
-  // Table Container
+  // RINGKASAN Box
+  ringkasanContainer: {
+    width: "100%",
+    maxWidth: 480,
+    borderWidth: 1,
+    borderColor: C.borderLight,
+    marginBottom: 14,
+    overflow: "hidden",
+  },
+  ringkasanHeader: {
+    backgroundColor: C.navyHeader,
+    paddingVertical: 3.5,
+    paddingHorizontal: 8,
+  },
+  ringkasanHeaderText: {
+    color: C.navyText,
+    fontSize: 7.5,
+    fontFamily: "Geist",
+    fontWeight: 700,
+    letterSpacing: 0.4,
+  },
+  ringkasanRow: {
+    flexDirection: "row",
+    borderBottomWidth: 0.5,
+    borderBottomColor: C.borderLight,
+    minHeight: 16,
+    alignItems: "stretch",
+  },
+  ringkasanLabelCell: {
+    width: "30%",
+    backgroundColor: C.summaryLabelBg,
+    paddingHorizontal: 8,
+    paddingVertical: 2.5,
+    justifyContent: "center",
+    borderRightWidth: 0.5,
+    borderRightColor: C.borderLight,
+  },
+  ringkasanLabelText: {
+    fontSize: 7.5,
+    fontFamily: "Geist",
+    fontWeight: 500,
+    color: C.textDark,
+  },
+  ringkasanValueCell: {
+    width: "70%",
+    backgroundColor: C.white,
+    paddingHorizontal: 8,
+    paddingVertical: 2.5,
+    justifyContent: "center",
+  },
+  ringkasanValueText: {
+    fontSize: 7.5,
+    fontFamily: "Geist",
+    fontWeight: 500,
+    color: C.textDark,
+    textAlign: "right",
+  },
+  ringkasanStatusText: {
+    fontSize: 7.5,
+    fontFamily: "Geist",
+    color: C.textMuted,
+    textAlign: "left",
+  },
+
+  // Main Table
   table: {
     width: "100%",
     borderWidth: 1,
-    borderColor: C.borderDark,
-    borderRadius: 3,
+    borderColor: C.navyHeader,
     overflow: "hidden",
   },
-
-  // Table Header Row
-  tblHeader: {
+  tblHeaderRow: {
     flexDirection: "row",
-    backgroundColor: C.headerBg,
+    backgroundColor: C.navyHeader,
     minHeight: 22,
     alignItems: "center",
   },
-  tblHCellNo: {
-    color: C.headerText,
-    fontSize: 7,
+  tblHCell: {
+    color: C.navyText,
+    fontSize: 7.5,
     fontFamily: "Geist",
     fontWeight: 700,
-    textAlign: "center",
-    textTransform: "uppercase",
-    letterSpacing: 0.2,
+    paddingHorizontal: 4,
+    paddingVertical: 3,
   },
-  tblHCellLeft: {
-    color: C.headerText,
-    fontSize: 7,
-    fontFamily: "Geist",
-    fontWeight: 700,
-    textAlign: "left",
-    textTransform: "uppercase",
-    letterSpacing: 0.2,
-    paddingLeft: 6,
-  },
-  tblHCellRight: {
-    color: C.headerText,
-    fontSize: 7,
-    fontFamily: "Geist",
-    fontWeight: 700,
-    textAlign: "right",
-    textTransform: "uppercase",
-    letterSpacing: 0.2,
-    paddingRight: 5,
-  },
-
-  // Base Row
   tblRow: {
     flexDirection: "row",
     borderBottomWidth: 0.5,
     borderBottomColor: C.borderLight,
-    minHeight: 18,
+    minHeight: 16,
     alignItems: "stretch",
   },
-
-  // NO Column
-  noCell: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 2.5,
-  },
-
-  // URAIAN Column
-  uraianCellCat: {
-    paddingLeft: 6,
-    paddingRight: 3,
-    paddingVertical: 3,
-    borderLeftWidth: 2.5,
-    borderLeftColor: C.gold,
-    justifyContent: "center",
-  },
-  uraianCellSub: {
-    paddingLeft: 10,
-    paddingRight: 3,
+  tblCell: {
+    paddingHorizontal: 4,
     paddingVertical: 2.5,
     justifyContent: "center",
+    borderRightWidth: 0.5,
+    borderRightColor: C.borderSubtle,
   },
-  uraianCellTotal: {
-    paddingLeft: 6,
-    paddingRight: 3,
-    paddingVertical: 3,
-    borderLeftWidth: 2.5,
-    borderLeftColor: C.gold,
-    justifyContent: "center",
-  },
-
-  // Data Cells
-  dataCell: {
-    paddingRight: 5,
-    paddingLeft: 2,
-    paddingVertical: 2.5,
-    justifyContent: "center",
+  tblCellText: {
+    fontSize: 7,
+    fontFamily: "Geist",
+    color: C.textDark,
   },
 
   // Footer
   footer: {
     position: "absolute",
-    bottom: 10,
-    left: 22,
-    right: 22,
+    bottom: 12,
+    left: 28,
+    right: 28,
     flexDirection: "row",
     justifyContent: "space-between",
     color: C.textMuted,
-    fontSize: 6,
+    fontSize: 6.5,
     borderTopWidth: 0.5,
     borderTopColor: C.borderLight,
-    paddingTop: 3,
+    paddingTop: 4,
   },
 })
 
@@ -323,280 +280,346 @@ export function RealisasiPengesahanPDF({
   title,
   generatedAt = new Date().toLocaleString("id-ID", { dateStyle: "long", timeStyle: "short" }),
 }: RealisasiPengesahanPDFProps) {
-  const colMeta = headers.map((h) => {
-    const isNo      = isNoHeader(h)
-    const isUraian  = isUraianHeader(h)
-    const isPct     = isPctHeader(h)
-    const isDeviasi = isDeviasiHeader(h)
-    const isNumeric = !isNo && !isUraian && (isNumericHeader(h) || !isPct)
+  // 1. Column resolution
+  const findKey = (keywords: string[]) => {
+    return headers.find((h) => {
+      const c = cleanKey(h)
+      return keywords.some((kw) => c.includes(kw))
+    })
+  }
 
-    return {
-      key: h,
-      label: h,
-      isNo,
-      isUraian,
-      isPct,
-      isDeviasi,
-      isNumeric,
-      isRight: isPct || isNumeric,
+  const sumberDanaKey = findKey(["sumberdana", "sumber", "dana"]) ?? headers[0]
+  const akunKey       = findKey(["akun", "kode", "kd"]) ?? headers[1]
+  const uraianKey     = findKey(["uraian", "nama", "keterangan", "deskripsi", "item"]) ?? headers[2]
+  const rpdKey        = findKey(["rpd", "proyeksi", "anggaran", "pagu", "target"]) ?? headers[3]
+  const realisasiKey  = findKey(["realisasi", "capaian", "terserap"]) ?? headers[4]
+  const deviasiKey    = headers.find((h) => cleanKey(h).includes("deviasi") && !cleanKey(h).includes("%")) ?? headers[5]
+  const pctDeviasiKey = headers.find((h) => isPctHeader(h)) ?? headers[6]
+
+  // 2. Summary Extraction (RM+BOPTN, BLU, TOTAL, Status)
+  let rmBoptnTotal = 0
+  let bluTotal = 0
+  let grandTotalRpd = 0
+  let grandTotalRealisasi = 0
+
+  for (const r of rows) {
+    const sDana = String(r[sumberDanaKey] ?? "").toUpperCase().trim()
+    const akun  = String(r[akunKey] ?? "").trim()
+    const uraian = String(r[uraianKey] ?? "").toUpperCase().trim()
+    const rpdVal = parseNumeric(r[rpdKey]).num
+    const realVal = parseNumeric(r[realisasiKey]).num
+
+    const isGroupHeader = uraian.includes("TOTAL") || !akun
+
+    if (isGroupHeader) {
+      if ((sDana.includes("RM") || sDana.includes("BOPTN")) && !sDana.includes("TOTAL")) {
+        rmBoptnTotal = rpdVal
+      } else if (sDana.includes("BLU") && !sDana.includes("TOTAL") && !sDana.includes("RM")) {
+        bluTotal = rpdVal
+      } else if (sDana.includes("TOTAL") || uraian.includes("RM + BOPTN + BLU")) {
+        grandTotalRpd = rpdVal
+        grandTotalRealisasi = realVal
+      }
     }
-  })
+  }
 
-  const noColKey = colMeta.find((c) => c.isNo)?.key
-  const uraianColKey = colMeta.find((c) => c.isUraian)?.key
+  // Fallback if grandTotalRpd wasn't in a total row
+  if (grandTotalRpd === 0 && (rmBoptnTotal > 0 || bluTotal > 0)) {
+    grandTotalRpd = rmBoptnTotal + bluTotal
+  }
 
-  // Helper width calculation for Portrait A4
-  const getColWidth = (col: (typeof colMeta)[0]) => {
-    if (col.isNo) return "6.5%"
-    if (col.isUraian) return "35.5%"
-    if (col.isPct) return "13%"
-    return "15%"
+  // 3. Status text computation
+  const statusText =
+    grandTotalRealisasi > 0
+      ? `Realisasi: Rp ${formatRupiah(grandTotalRealisasi)} (${((grandTotalRealisasi / (grandTotalRpd || 1)) * 100).toFixed(2)}%)`
+      : "Realisasi belum tersedia"
+
+  // 4. Period title detection
+  const combinedTitle = `${sheetTitle || ""} ${title || ""}`.trim()
+  let detectedPeriod = ""
+  const monthMatch = combinedTitle.match(
+    /(Januari|Februari|Maret|April|Mei|Juni|Juli|Agustus|September|Oktober|November|Desember|\b20\d\d\b)/gi
+  )
+  if (monthMatch && monthMatch.length > 0) {
+    detectedPeriod = monthMatch.join(" ").toUpperCase()
+  }
+  if (!detectedPeriod) {
+    detectedPeriod = (sheetTitle || title || "SEPTEMBER 2026").toUpperCase()
+  }
+
+  // Column widths matching reference
+  const colWidths = {
+    sumberDana: "16%",
+    akun:       "8%",
+    uraian:     "30%",
+    rpd:        "18%",
+    realisasi:  "10%",
+    deviasi:    "9%",
+    pctDeviasi: "9%",
   }
 
   return (
-    <Document title={sheetTitle || title || "Realisasi Pengesahan"} author="BLU UIN Palopo">
-      <Page size="A4" orientation="portrait" style={s.page}>
-        {/* Kop / Header */}
-        <View style={s.kopContainer}>
-          <Text style={s.orgTitle}>BLU UIN PALOPO</Text>
-          <Text style={s.orgSub}>Universitas Islam Negeri Palopo — Badan Layanan Umum</Text>
-          <Text style={s.reportTitle}>{sheetTitle || title || "LAPORAN REALISASI PENGESAHAN"}</Text>
-
-          <View style={s.metaRow}>
-            <Text style={s.metaText}>Sumber: {title || "Google Drive / Excel"}</Text>
-            <Text style={s.metaText}>Dicetak: {generatedAt}</Text>
-          </View>
-          <View style={s.divider} />
+    <Document title={sheetTitle || title || "Rekapitulasi RPD dan Realisasi Belanja"} author="BLU UIN Palopo">
+      <Page size="A4" orientation="landscape" style={s.page}>
+        {/* ── Title Block ── */}
+        <View style={s.titleBlock}>
+          <Text style={s.mainTitle}>REKAPITULASI RPD DAN REALISASI BELANJA</Text>
+          <Text style={s.periodTitle}>{detectedPeriod}</Text>
+          <Text style={s.sourceNote}>
+            Sumber: {title ? `${title}` : `RPD ${detectedPeriod}`} | {statusText}
+          </Text>
         </View>
 
-        {/* Tabel */}
-        <View style={s.table}>
-          {/* Header Tabel */}
-          <View style={s.tblHeader}>
-            {colMeta.map((col) => (
-              <View
-                key={col.key}
-                style={{ width: getColWidth(col) }}
-              >
-                <Text
-                  style={
-                    col.isNo
-                      ? s.tblHCellNo
-                      : col.isRight
-                      ? s.tblHCellRight
-                      : s.tblHCellLeft
-                  }
-                >
-                  {col.label}
-                </Text>
-              </View>
-            ))}
+        {/* ── RINGKASAN Box ── */}
+        <View style={s.ringkasanContainer}>
+          <View style={s.ringkasanHeader}>
+            <Text style={s.ringkasanHeaderText}>RINGKASAN</Text>
           </View>
 
-          {/* Baris Data */}
+          <View style={s.ringkasanRow}>
+            <View style={s.ringkasanLabelCell}>
+              <Text style={s.ringkasanLabelText}>RM + BOPTN</Text>
+            </View>
+            <View style={s.ringkasanValueCell}>
+              <Text style={s.ringkasanValueText}>
+                {rmBoptnTotal > 0 ? `Rp ${formatRupiah(rmBoptnTotal)}` : "Rp 0"}
+              </Text>
+            </View>
+          </View>
+
+          <View style={s.ringkasanRow}>
+            <View style={s.ringkasanLabelCell}>
+              <Text style={s.ringkasanLabelText}>BLU</Text>
+            </View>
+            <View style={s.ringkasanValueCell}>
+              <Text style={s.ringkasanValueText}>
+                {bluTotal > 0 ? `Rp ${formatRupiah(bluTotal)}` : "Rp 0"}
+              </Text>
+            </View>
+          </View>
+
+          <View style={s.ringkasanRow}>
+            <View style={s.ringkasanLabelCell}>
+              <Text style={[s.ringkasanLabelText, { fontWeight: 700 }]}>TOTAL RPD</Text>
+            </View>
+            <View style={s.ringkasanValueCell}>
+              <Text style={[s.ringkasanValueText, { fontWeight: 700 }]}>
+                {grandTotalRpd > 0 ? `Rp ${formatRupiah(grandTotalRpd)}` : "Rp 0"}
+              </Text>
+            </View>
+          </View>
+
+          <View style={[s.ringkasanRow, { borderBottomWidth: 0 }]}>
+            <View style={s.ringkasanLabelCell}>
+              <Text style={s.ringkasanLabelText}>STATUS</Text>
+            </View>
+            <View style={s.ringkasanValueCell}>
+              <Text style={s.ringkasanStatusText}>{statusText}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* ── Main Data Table ── */}
+        <View style={s.table}>
+          {/* Table Header */}
+          <View style={s.tblHeaderRow}>
+            <View style={[s.tblCell, { width: colWidths.sumberDana, borderRightColor: C.borderDark }]}>
+              <Text style={[s.tblHCell, { textAlign: "left" }]}>Sumber Dana</Text>
+            </View>
+            <View style={[s.tblCell, { width: colWidths.akun, borderRightColor: C.borderDark }]}>
+              <Text style={[s.tblHCell, { textAlign: "center" }]}>Akun</Text>
+            </View>
+            <View style={[s.tblCell, { width: colWidths.uraian, borderRightColor: C.borderDark }]}>
+              <Text style={[s.tblHCell, { textAlign: "left" }]}>Uraian</Text>
+            </View>
+            <View style={[s.tblCell, { width: colWidths.rpd, borderRightColor: C.borderDark }]}>
+              <Text style={[s.tblHCell, { textAlign: "right" }]}>RPD / Proyeksi</Text>
+            </View>
+            <View style={[s.tblCell, { width: colWidths.realisasi, borderRightColor: C.borderDark }]}>
+              <Text style={[s.tblHCell, { textAlign: "right" }]}>Realisasi</Text>
+            </View>
+            <View style={[s.tblCell, { width: colWidths.deviasi, borderRightColor: C.borderDark }]}>
+              <Text style={[s.tblHCell, { textAlign: "right" }]}>Deviasi</Text>
+            </View>
+            <View style={[s.tblCell, { width: colWidths.pctDeviasi, borderRightWidth: 0 }]}>
+              <Text style={[s.tblHCell, { textAlign: "right" }]}>% Deviasi</Text>
+            </View>
+          </View>
+
+          {/* Data Rows */}
           {rows.map((row, ri) => {
-            const noVal = String(row[noColKey ?? ""] ?? "").trim()
-            const uraianVal = String(row[uraianColKey ?? ""] ?? "").trim()
+            const sDanaVal  = String(row[sumberDanaKey] ?? "").trim()
+            const akunVal   = String(row[akunKey] ?? "").trim()
+            const uraianVal = String(row[uraianKey] ?? "").trim()
 
-            const isTotal =
-              /^(I|II|III|IV|V|TOTAL|JUMLAH)$/i.test(noVal) ||
-              uraianVal.toUpperCase().startsWith("TOTAL") ||
-              uraianVal.toUpperCase().startsWith("JUMLAH")
+            const rpdParsed       = parseNumeric(row[rpdKey])
+            const realisasiParsed = parseNumeric(row[realisasiKey])
+            const deviasiParsed   = parseNumeric(row[deviasiKey])
+            const pctParsed       = formatPercentage(row[pctDeviasiKey])
 
-            const isCat1 = !isTotal && noVal === "1"
-            const isCat2 = !isTotal && noVal === "2"
-            const isCat3 = !isTotal && noVal === "3"
-            const isMainCategory = isCat1 || isCat2 || isCat3 || (!isTotal && /^\d+$/.test(noVal))
-            const isSubItem = !isTotal && !isMainCategory
+            const isGrandTotal =
+              sDanaVal.toUpperCase().includes("TOTAL") ||
+              uraianVal.toUpperCase().includes("RM + BOPTN + BLU")
 
-            // Row background
-            const rowBg = isTotal
-              ? C.totalBg
-              : isCat1
-              ? C.cat1Bg
-              : isCat2
-              ? C.cat2Bg
-              : isCat3
-              ? C.cat3Bg
-              : isMainCategory
-              ? C.cat1Bg
-              : C.subBg
+            const isGroupTotal =
+              !isGrandTotal &&
+              (uraianVal.toUpperCase().includes("TOTAL") || (sDanaVal !== "" && !akunVal))
 
-            // Badge styling
-            const badgeBg = isTotal
-              ? C.totalBg
-              : isCat1
-              ? C.cat1Badge
-              : isCat2
-              ? C.cat2Badge
-              : isCat3
-              ? C.cat3Badge
-              : isMainCategory
-              ? C.cat1Badge
-              : C.subBadge
+            const isBold = isGrandTotal || isGroupTotal
 
-            const badgeColor = isCat2
-              ? C.textDark
-              : isSubItem
-              ? C.textMuted
-              : C.white
+            // Row background color
+            let rowBg = C.white
+            if (isGrandTotal) rowBg = C.totalRowBg
+            else if (isGroupTotal) rowBg = C.groupRowBg
 
             return (
               <View key={ri} style={[s.tblRow, { backgroundColor: rowBg }]} wrap={false}>
-                {colMeta.map((col) => {
-                  const raw = row[col.key]
+                {/* 1. Sumber Dana */}
+                <View style={[s.tblCell, { width: colWidths.sumberDana }]}>
+                  <Text
+                    style={[
+                      s.tblCellText,
+                      {
+                        fontWeight: isBold ? 700 : 400,
+                        textAlign: "left",
+                      },
+                    ]}
+                  >
+                    {sDanaVal}
+                  </Text>
+                </View>
 
-                  // Kolom NO
-                  if (col.isNo) {
-                    const noStr = String(raw ?? "").trim()
-                    return (
-                      <View key={col.key} style={[s.noCell, { width: getColWidth(col), backgroundColor: badgeBg }]}>
-                        <Text
-                          style={{
-                            color: badgeColor,
-                            fontFamily: "Geist",
-                            fontWeight: isSubItem ? 400 : 700,
-                            fontSize: 7,
-                            textAlign: "center",
-                          }}
-                        >
-                          {noStr && noStr !== "0" ? noStr : "-"}
-                        </Text>
-                      </View>
-                    )
-                  }
+                {/* 2. Akun */}
+                <View style={[s.tblCell, { width: colWidths.akun }]}>
+                  <Text
+                    style={[
+                      s.tblCellText,
+                      {
+                        textAlign: "center",
+                        fontWeight: isBold ? 700 : 400,
+                      },
+                    ]}
+                  >
+                    {akunVal}
+                  </Text>
+                </View>
 
-                  // Kolom URAIAN
-                  if (col.isUraian) {
-                    const uText = String(raw ?? "").trim()
-                    const cellStyle = isTotal
-                      ? s.uraianCellTotal
-                      : isMainCategory
-                      ? s.uraianCellCat
-                      : s.uraianCellSub
+                {/* 3. Uraian */}
+                <View style={[s.tblCell, { width: colWidths.uraian }]}>
+                  <Text
+                    style={[
+                      s.tblCellText,
+                      {
+                        fontWeight: isBold ? 700 : 400,
+                        textAlign: "left",
+                      },
+                    ]}
+                  >
+                    {uraianVal}
+                  </Text>
+                </View>
 
-                    const textColor = isTotal
-                      ? C.white
-                      : isMainCategory
-                      ? C.textDark
-                      : C.textMuted
+                {/* 4. RPD / Proyeksi */}
+                <View style={[s.tblCell, { width: colWidths.rpd }]}>
+                  <Text
+                    style={[
+                      s.tblCellText,
+                      {
+                        textAlign: "right",
+                        fontWeight: isBold ? 700 : 400,
+                      },
+                    ]}
+                  >
+                    {rpdParsed.isDash && rpdParsed.num === 0
+                      ? "Rp 0"
+                      : `Rp ${formatRupiah(rpdParsed.num)}`}
+                  </Text>
+                </View>
 
-                    return (
-                      <View key={col.key} style={[cellStyle, { width: getColWidth(col) }]}>
-                        <Text
-                          style={{
-                            color: textColor,
-                            fontFamily: "Geist",
-                            fontWeight: isSubItem ? 400 : 700,
-                            fontSize: 7,
-                            textTransform: "uppercase",
-                          }}
-                        >
-                          {uText || "-"}
-                        </Text>
-                      </View>
-                    )
-                  }
+                {/* 5. Realisasi */}
+                <View style={[s.tblCell, { width: colWidths.realisasi }]}>
+                  <Text
+                    style={[
+                      s.tblCellText,
+                      {
+                        textAlign: "right",
+                        fontWeight: isBold ? 700 : 400,
+                      },
+                    ]}
+                  >
+                    {realisasiParsed.isDash ? "" : `Rp ${formatRupiah(realisasiParsed.num)}`}
+                  </Text>
+                </View>
 
-                  // Kolom Persentase (% Deviasi)
-                  if (col.isPct) {
-                    const { text, num, isDash } = formatPercentage(raw)
-                    let textColor = isTotal ? C.white : C.textMuted
-                    let isBold = isTotal || isMainCategory
+                {/* 6. Deviasi (Soft green tinted background for data cells) */}
+                <View
+                  style={[
+                    s.tblCell,
+                    {
+                      width: colWidths.deviasi,
+                      backgroundColor: isBold ? rowBg : C.deviasiColBg,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      s.tblCellText,
+                      {
+                        textAlign: "right",
+                        fontWeight: isBold ? 700 : 400,
+                        color:
+                          !deviasiParsed.isDash && deviasiParsed.num < 0
+                            ? C.redText
+                            : C.textDark,
+                      },
+                    ]}
+                  >
+                    {deviasiParsed.isDash ? "" : `Rp ${formatRupiah(deviasiParsed.num)}`}
+                  </Text>
+                </View>
 
-                    if (!isDash) {
-                      if (num < 0) {
-                        textColor = isTotal ? C.redBright : C.redText
-                        isBold = true
-                      } else if (num > 0) {
-                        textColor = isTotal ? C.white : C.textDark
-                        isBold = true
-                      }
-                    }
-
-                    return (
-                      <View key={col.key} style={[s.dataCell, { width: getColWidth(col) }]}>
-                        <Text
-                          style={{
-                            color: textColor,
-                            fontFamily: "Geist",
-                            fontWeight: isBold ? 700 : 400,
-                            fontSize: 7,
-                            textAlign: "right",
-                          }}
-                        >
-                          {text}
-                        </Text>
-                      </View>
-                    )
-                  }
-
-                  // Kolom Angka (Proyeksi, Realisasi, Deviasi)
-                  if (col.isNumeric) {
-                    const { num, isDash } = parseNumeric(raw)
-                    let textColor = isTotal ? C.white : C.textMuted
-                    let isBold = isTotal || isMainCategory
-
-                    if (!isDash && num !== 0) {
-                      if (col.isDeviasi && num < 0) {
-                        textColor = isTotal ? C.redBright : C.redText
-                        isBold = true
-                      } else if (col.isDeviasi && num > 0) {
-                        textColor = isTotal ? C.white : C.greenText
-                        isBold = true
-                      } else if (isMainCategory || isTotal) {
-                        textColor = isTotal ? C.white : C.textDark
-                        isBold = true
-                      } else {
-                        textColor = C.textMuted
-                        isBold = false
-                      }
-                    }
-
-                    const display = isDash || num === 0 ? "-" : formatRupiah(num)
-
-                    return (
-                      <View key={col.key} style={[s.dataCell, { width: getColWidth(col) }]}>
-                        <Text
-                          style={{
-                            color: textColor,
-                            fontFamily: "Geist",
-                            fontWeight: isBold ? 700 : 400,
-                            fontSize: 7,
-                            textAlign: "right",
-                          }}
-                        >
-                          {display}
-                        </Text>
-                      </View>
-                    )
-                  }
-
-                  // Kolom Teks Biasa
-                  const sVal = String(raw ?? "").trim()
-                  return (
-                    <View key={col.key} style={[s.dataCell, { width: getColWidth(col) }]}>
-                      <Text
-                        style={{
-                          color: isTotal ? C.white : C.textDark,
-                          fontFamily: "Geist",
-                          fontWeight: isTotal ? 700 : 400,
-                          fontSize: 7,
-                        }}
-                      >
-                        {sVal || "-"}
-                      </Text>
-                    </View>
-                  )
-                })}
+                {/* 7. % Deviasi (Soft green tinted background for data cells) */}
+                <View
+                  style={[
+                    s.tblCell,
+                    {
+                      width: colWidths.pctDeviasi,
+                      borderRightWidth: 0,
+                      backgroundColor: isBold ? rowBg : C.deviasiColBg,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      s.tblCellText,
+                      {
+                        textAlign: "right",
+                        fontWeight: isBold ? 700 : 400,
+                        color:
+                          !pctParsed.isDash && pctParsed.num < 0
+                            ? C.redText
+                            : C.textDark,
+                      },
+                    ]}
+                  >
+                    {pctParsed.text}
+                  </Text>
+                </View>
               </View>
             )
           })}
         </View>
 
-        {/* Footer */}
+        {/* ── Catatan di bawah tabel ── */}
+        <Text style={{ fontSize: 6.8, fontFamily: "Geist", color: C.textMuted, marginTop: 8 }}>
+          Catatan: Tanda '—' menunjukkan data realisasi belum tersedia. Deviasi dan % deviasi akan otomatis terhitung setelah kolom Realisasi diisi.
+        </Text>
+
+        {/* ── Footer ── */}
         <View style={s.footer} fixed>
-          <Text>BLU UIN Palopo — {sheetTitle || title || "Realisasi Pengesahan"}</Text>
+          <Text>
+            BLU UIN PALOPO — {sheetTitle || title || "Rekapitulasi RPD dan Realisasi Belanja"}
+          </Text>
           <Text render={({ pageNumber, totalPages }) => `Halaman ${pageNumber} dari ${totalPages}`} />
         </View>
       </Page>

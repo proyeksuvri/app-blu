@@ -691,6 +691,7 @@ export async function getBukuKasUmum(filter: BukuKasFilter): Promise<BukuKasUmum
 
   // ── Hitung saldo awal ──
   const tahunAwal = parseInt(filter.tglAwal.split("-")[0], 10)
+  const awalTahun = `${tahunAwal}-01-01`
   let saldoAwal = 0
 
   if (filter.rekeningId) {
@@ -707,6 +708,54 @@ export async function getBukuKasUmum(filter: BukuKasFilter): Promise<BukuKasUmum
       .select("saldo")
       .eq("tahun", tahunAwal)
     saldoAwal = (saAll ?? []).reduce((s, r) => s + Number(r.saldo), 0)
+  }
+
+  // Jika periode laporan bukan mulai 1 Januari, akumulasikan transaksi sebelum filter.tglAwal
+  // sehingga saldo akhir bulan sebelumnya otomatis menjadi saldo awal bulan berjalan
+  if (filter.tglAwal > awalTahun) {
+    let prevPenQ = sb
+      .from("penerimaan")
+      .select("jumlah")
+      .gte("tanggal_terima", awalTahun)
+      .lt("tanggal_terima", filter.tglAwal)
+      .eq("status", "verified")
+    if (filter.rekeningId) prevPenQ = prevPenQ.eq("rekening_bank_id", filter.rekeningId)
+    if (filter.unitId) prevPenQ = prevPenQ.eq("unit_kerja_id", filter.unitId)
+
+    let prevPenOffset = 0
+    let totalPrevPen = 0
+    while (true) {
+      const { data: batch, error } = await prevPenQ.range(prevPenOffset, prevPenOffset + BATCH - 1)
+      if (error || !batch || batch.length === 0) break
+      for (const row of batch) {
+        totalPrevPen += Number(row.jumlah)
+      }
+      if (batch.length < BATCH) break
+      prevPenOffset += BATCH
+    }
+
+    let prevKelQ = sb
+      .from("pengeluaran")
+      .select("jumlah")
+      .gte("tanggal", awalTahun)
+      .lt("tanggal", filter.tglAwal)
+      .eq("status", "verified")
+    if (filter.rekeningId) prevKelQ = prevKelQ.eq("rekening_bank_id", filter.rekeningId)
+    if (filter.unitId) prevKelQ = prevKelQ.eq("unit_kerja_id", filter.unitId)
+
+    let prevKelOffset = 0
+    let totalPrevKel = 0
+    while (true) {
+      const { data: batch, error } = await prevKelQ.range(prevKelOffset, prevKelOffset + BATCH - 1)
+      if (error || !batch || batch.length === 0) break
+      for (const row of batch) {
+        totalPrevKel += Number(row.jumlah)
+      }
+      if (batch.length < BATCH) break
+      prevKelOffset += BATCH
+    }
+
+    saldoAwal = saldoAwal + totalPrevPen - totalPrevKel
   }
 
   // ── Merge & sort ──
@@ -825,8 +874,17 @@ export async function getBkuPenerimaan(filter: BkuPenerimaanFilter = {}) {
     if (filter.unitId) qPrev = qPrev.eq("unit_kerja_id", filter.unitId)
     if (filter.jenisId) qPrev = qPrev.eq("jenis_pendapatan_id", filter.jenisId)
 
-    const { data: prevData } = await qPrev
-    saldoAwal = (prevData ?? []).reduce((sum, r) => sum + Number(r.jumlah), 0)
+    const BATCH = 1000
+    let prevOffset = 0
+    while (true) {
+      const { data: batch, error } = await qPrev.range(prevOffset, prevOffset + BATCH - 1)
+      if (error || !batch || batch.length === 0) break
+      for (const r of batch) {
+        saldoAwal += Number(r.jumlah)
+      }
+      if (batch.length < BATCH) break
+      prevOffset += BATCH
+    }
   }
 
   // 2. Transaksi dalam rentang tanggal
@@ -1588,9 +1646,55 @@ export async function rekapPosisiRekening(
       saldoAwalMap.set(s.rekening_bank_id, Number(s.saldo))
     }
 
+    const BATCH = 1000
+
+    // Jika filter bulan > 1, perhitungkan transaksi dari 1 Jan s.d. sebelum tglAwal
+    // agar saldo akhir bulan sebelumnya otomatis menjadi saldo awal bulan berjalan
+    if (bulan !== null && bulan > 1) {
+      const awalTahun = `${tahun}-01-01`
+      const prevPenQ = sb
+        .from("penerimaan")
+        .select("jumlah, rekening_bank_id")
+        .in("rekening_bank_id", rekeningIds)
+        .eq("status", "verified")
+        .gte("tanggal_terima", awalTahun)
+        .lt("tanggal_terima", tglAwal)
+
+      let prevPenOffset = 0
+      while (true) {
+        const { data: batch, error } = await prevPenQ.range(prevPenOffset, prevPenOffset + BATCH - 1)
+        if (error || !batch || batch.length === 0) break
+        for (const row of batch) {
+          const prev = saldoAwalMap.get(row.rekening_bank_id) ?? 0
+          saldoAwalMap.set(row.rekening_bank_id, prev + Number(row.jumlah))
+        }
+        if (batch.length < BATCH) break
+        prevPenOffset += BATCH
+      }
+
+      const prevKelQ = sb
+        .from("pengeluaran")
+        .select("jumlah, rekening_bank_id")
+        .in("rekening_bank_id", rekeningIds)
+        .eq("status", "verified")
+        .gte("tanggal", awalTahun)
+        .lt("tanggal", tglAwal)
+
+      let prevKelOffset = 0
+      while (true) {
+        const { data: batch, error } = await prevKelQ.range(prevKelOffset, prevKelOffset + BATCH - 1)
+        if (error || !batch || batch.length === 0) break
+        for (const row of batch) {
+          const prev = saldoAwalMap.get(row.rekening_bank_id) ?? 0
+          saldoAwalMap.set(row.rekening_bank_id, prev - Number(row.jumlah))
+        }
+        if (batch.length < BATCH) break
+        prevKelOffset += BATCH
+      }
+    }
+
     // Agregasi penerimaan per rekening
     const penerimaanMap = new Map<string, number>()
-    const BATCH = 1000
     const penQ = sb
       .from("penerimaan")
       .select("jumlah, rekening_bank_id")
