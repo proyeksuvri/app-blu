@@ -17,7 +17,10 @@ export type PengeluaranFilter = {
   tgl_awal?: string
   tgl_akhir?: string
   unit_id?: string
+  unit_ids?: string[]
   rekening_id?: string
+  rekening_ids?: string[]
+  jenis_ids?: string[]
   q?: string
   page?: number
   limit?: number
@@ -81,8 +84,11 @@ export async function listPengeluaran(filter: PengeluaranFilter = {}) {
 
   q = applyDateFilter(q, filter)
 
-  if (filter.unit_id) q = q.eq("unit_kerja_id", filter.unit_id)
-  if (filter.rekening_id) q = q.eq("rekening_bank_id", filter.rekening_id)
+  if (filter.jenis_ids?.length) q = q.in("jenis_pengeluaran_id", filter.jenis_ids)
+  if (filter.unit_ids?.length) q = q.in("unit_kerja_id", filter.unit_ids)
+  else if (filter.unit_id) q = q.eq("unit_kerja_id", filter.unit_id)
+  if (filter.rekening_ids?.length) q = q.in("rekening_bank_id", filter.rekening_ids)
+  else if (filter.rekening_id) q = q.eq("rekening_bank_id", filter.rekening_id)
   if (filter.q) q = q.ilike("nomor_bukti", `%${filter.q}%`)
 
   const sortCol = filter.sort ?? "tanggal"
@@ -400,9 +406,12 @@ export async function exportPengeluaran(filter: Omit<PengeluaranFilter, "page">)
   if (filter.statuses?.length) q = q.in("status", filter.statuses)
   else if (filter.status) q = q.eq("status", filter.status)
   q = applyDateFilter(q, filter as PengeluaranFilter)
-  if (filter.unit_id)     q = q.eq("unit_kerja_id", filter.unit_id)
-  if (filter.rekening_id) q = q.eq("rekening_bank_id", filter.rekening_id)
-  if (filter.q)           q = q.ilike("nomor_bukti", `%${filter.q}%`)
+  if (filter.jenis_ids?.length)   q = q.in("jenis_pengeluaran_id", filter.jenis_ids)
+  if (filter.unit_ids?.length)    q = q.in("unit_kerja_id", filter.unit_ids)
+  else if (filter.unit_id)        q = q.eq("unit_kerja_id", filter.unit_id)
+  if (filter.rekening_ids?.length) q = q.in("rekening_bank_id", filter.rekening_ids)
+  else if (filter.rekening_id)    q = q.eq("rekening_bank_id", filter.rekening_id)
+  if (filter.q)                   q = q.ilike("nomor_bukti", `%${filter.q}%`)
 
   const sortCol = filter.sort ?? "tanggal"
   q = q.order(sortCol, { ascending: filter.order === "asc" }).order("id", { ascending: true })
@@ -460,9 +469,12 @@ export async function exportPengeluaranDetail(filter: Omit<PengeluaranFilter, "p
   if (filter.statuses?.length) q = q.in("status", filter.statuses)
   else if (filter.status) q = q.eq("status", filter.status)
   q = applyDateFilter(q, filter as PengeluaranFilter)
-  if (filter.unit_id)     q = q.eq("unit_kerja_id", filter.unit_id)
-  if (filter.rekening_id) q = q.eq("rekening_bank_id", filter.rekening_id)
-  if (filter.q)           q = q.ilike("nomor_bukti", `%${filter.q}%`)
+  if (filter.jenis_ids?.length)   q = q.in("jenis_pengeluaran_id", filter.jenis_ids)
+  if (filter.unit_ids?.length)    q = q.in("unit_kerja_id", filter.unit_ids)
+  else if (filter.unit_id)        q = q.eq("unit_kerja_id", filter.unit_id)
+  if (filter.rekening_ids?.length) q = q.in("rekening_bank_id", filter.rekening_ids)
+  else if (filter.rekening_id)    q = q.eq("rekening_bank_id", filter.rekening_id)
+  if (filter.q)                   q = q.ilike("nomor_bukti", `%${filter.q}%`)
 
   const sortCol = filter.sort ?? "tanggal"
   q = q.order(sortCol, { ascending: filter.order === "asc" }).order("id", { ascending: true })
@@ -566,8 +578,11 @@ export async function getPengeluaranSummary(filter: PengeluaranFilter = {}): Pro
   let q = sb.from("pengeluaran").select("jumlah, status")
 
   q = applyDateFilter(q, filter)
-  if (filter.unit_id) q = q.eq("unit_kerja_id", filter.unit_id)
-  if (filter.rekening_id) q = q.eq("rekening_bank_id", filter.rekening_id)
+  if (filter.jenis_ids?.length)    q = q.in("jenis_pengeluaran_id", filter.jenis_ids)
+  if (filter.unit_ids?.length)     q = q.in("unit_kerja_id", filter.unit_ids)
+  else if (filter.unit_id)         q = q.eq("unit_kerja_id", filter.unit_id)
+  if (filter.rekening_ids?.length) q = q.in("rekening_bank_id", filter.rekening_ids)
+  else if (filter.rekening_id)     q = q.eq("rekening_bank_id", filter.rekening_id)
   if (filter.q) q = q.ilike("nomor_bukti", `%${filter.q}%`)
 
   q = q.order("id", { ascending: true })

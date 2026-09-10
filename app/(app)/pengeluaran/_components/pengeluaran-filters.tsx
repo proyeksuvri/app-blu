@@ -33,6 +33,12 @@ const TAHUN_OPTIONS: FilterOption[] = Array.from({ length: 6 }, (_, i) => {
   return { value: String(y), label: `Tahun ${y}` }
 })
 
+type PengeluaranFiltersProps = {
+  jenisOptions: FilterOption[]
+  unitOptions: FilterOption[]
+  rekeningOptions: FilterOption[]
+}
+
 function SearchInput() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -89,7 +95,7 @@ function SearchInput() {
   )
 }
 
-export function PengeluaranFilters() {
+export function PengeluaranFilters({ jenisOptions, unitOptions, rekeningOptions }: PengeluaranFiltersProps) {
   return (
     <div className="flex flex-wrap items-end gap-3">
       <SearchInput />
@@ -111,7 +117,31 @@ export function PengeluaranFilters() {
         options={STATUS_OPTIONS}
         placeholder="Semua status"
       />
-      <FilterReset paramKeys={["status", "bulan", "tahun", "q"]} />
+      {jenisOptions.length > 0 && (
+        <FacetedFilter
+          title="Jenis Pengeluaran"
+          paramKey="jenis_id"
+          options={jenisOptions}
+          placeholder="Semua jenis"
+        />
+      )}
+      {unitOptions.length > 0 && (
+        <FacetedFilter
+          title="Unit Kerja"
+          paramKey="unit_id"
+          options={unitOptions}
+          placeholder="Semua unit"
+        />
+      )}
+      {rekeningOptions.length > 0 && (
+        <FacetedFilter
+          title="Rekening Bank"
+          paramKey="rekening_id"
+          options={rekeningOptions}
+          placeholder="Semua rekening"
+        />
+      )}
+      <FilterReset paramKeys={["status", "bulan", "tahun", "jenis_id", "unit_id", "rekening_id", "q"]} />
     </div>
   )
 }
