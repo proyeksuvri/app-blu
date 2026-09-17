@@ -121,6 +121,7 @@ function getMenuGroups(role: string): MenuGroup[] {
     children: [
       { label: "Laporan Umum", href: "/laporan" },
       { label: "Buku Kas Umum (BKU)", href: "/laporan/buku-kas-umum" },
+      { label: "Pengaturan Dokumen BKU", href: "/laporan/pengaturan-dokumen-bku" },
       { label: "Register Penerimaan", href: "/laporan/bku-penerimaan" },
       { label: "Realisasi Pendapatan BLU", href: "/laporan/realisasi-pendapatan" },
       { label: "Posisi Rekening", href: "/laporan/posisi-rekening" },
@@ -196,6 +197,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   pengguna: "Pengguna",
   laporan: "Laporan",
   "buku-kas-umum": "Buku Kas Umum",
+  "pengaturan-dokumen-bku": "Pengaturan Dokumen BKU",
   "bku-penerimaan": "BKU Penerimaan",
   "panduan": "Panduan & Aturan",
   "realisasi-pengesahan": "Realisasi Pengesahan",

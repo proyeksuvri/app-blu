@@ -28,6 +28,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { getBukuKasUmum, getBukuKasUmumAll, type BukuKasUmumResult } from "@/app/actions/laporan"
+import { BkuFormatBaruModal } from "@/components/bku-format-baru-modal"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -422,17 +423,28 @@ export function BukuKasUmumClient({
             </p>
           </div>
         </div>
-        <Button
-          id="bku-btn-pdf"
-          variant="outline"
-          size="sm"
-          onClick={exportPDF}
-          disabled={pdfLoading || isPending || data.totalRows === 0}
-          className="h-8 text-xs gap-1.5"
-        >
-          <FileText className="h-3.5 w-3.5" />
-          {pdfLoading ? "Memproses PDF..." : "Cetak PDF"}
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            id="bku-btn-pdf"
+            variant="outline"
+            size="sm"
+            onClick={exportPDF}
+            disabled={pdfLoading || isPending || data.totalRows === 0}
+            className="h-8 text-xs gap-1.5"
+          >
+            <FileText className="h-3.5 w-3.5" />
+            {pdfLoading ? "Memproses PDF..." : "Cetak PDF"}
+          </Button>
+          <BkuFormatBaruModal
+            filter={{
+              tglAwal: filter.tglAwal,
+              tglAkhir: filter.tglAkhir,
+              rekeningId: filter.rekeningId,
+              unitId: filter.unitId,
+            }}
+            disabled={pdfLoading || isPending || data.totalRows === 0}
+          />
+        </div>
       </div>
 
       {/* Filter Bar */}
