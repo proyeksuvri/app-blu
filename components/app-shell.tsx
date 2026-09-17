@@ -113,6 +113,7 @@ function getMenuGroups(role: string): MenuGroup[] {
       { label: "Unit Kerja", href: "/unit-kerja" },
       { label: "Rekening Bank", href: "/rekening-bank" },
       { label: "Jenis Pemindahan Kas", href: "/jenis-pemindahan-kas" },
+      { label: "Pengaturan Dokumen BKU", href: "/pengaturan-dokumen-bku" },
     ],
   }
 
@@ -121,7 +122,6 @@ function getMenuGroups(role: string): MenuGroup[] {
     children: [
       { label: "Laporan Umum", href: "/laporan" },
       { label: "Buku Kas Umum (BKU)", href: "/laporan/buku-kas-umum" },
-      { label: "Pengaturan Dokumen BKU", href: "/laporan/pengaturan-dokumen-bku" },
       { label: "Register Penerimaan", href: "/laporan/bku-penerimaan" },
       { label: "Realisasi Pendapatan BLU", href: "/laporan/realisasi-pendapatan" },
       { label: "Posisi Rekening", href: "/laporan/posisi-rekening" },
